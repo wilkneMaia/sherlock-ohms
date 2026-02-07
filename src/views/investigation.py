@@ -1,5 +1,13 @@
 import streamlit as st
 from services.agent import get_agent, get_available_models
+import sys
+import subprocess
+
+# Garante que a biblioteca 'tabulate' esteja instalada para formatação de tabelas pelo agente
+try:
+    import tabulate
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "tabulate"])
 
 def render_investigation_tab(df_faturas):
     # --- 1. CONFIGURAÇÃO (API Key e Modelo) ---
@@ -45,27 +53,69 @@ def render_investigation_tab(df_faturas):
             st.session_state.messages = []
             st.rerun()
 
-        chat_text = "\n".join([f"{m['role'].upper()}: {m['content']}" for m in st.session_state.messages])
-        c2.download_button("💾 Salvar", data=chat_text, file_name="chat.txt", width="stretch")
+        chat_text = "\n\n".join([f"**{m['role'].upper()}**: {m['content']}" for m in st.session_state.messages])
+        c2.download_button("💾 Salvar", data=chat_text, file_name="investigacao.md", width="stretch")
 
-    # Histórico e Input
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]): st.markdown(msg["content"])
+    # Definição de ícones
+    ai_avatar = "🕵️‍♂️"
+    user_avatar = "👤"
+
+    # Container principal do chat para manter a ordem visual correta
+    chat_container = st.container()
+
+    # Histórico
+    with chat_container:
+        for msg in st.session_state.messages:
+            avatar = user_avatar if msg["role"] == "user" else ai_avatar
+            with st.chat_message(msg["role"], avatar=avatar):
+                st.markdown(msg["content"])
+
+    # Mensagem de boas-vindas (Placeholder para ser removido ao iniciar)
+    welcome_ph = st.empty()
+    if not st.session_state.messages:
+        with welcome_ph:
+            st.markdown(
+                """
+                <div style='text-align: center; color: #888; margin-top: 40px; margin-bottom: 40px;'>
+                    <h4>👋 Olá! Sou seu Detetive Financeiro.</h4>
+                    <p>Estou pronto para analisar suas faturas. Faça uma pergunta para começar a investigação!</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
     if prompt := st.chat_input("Pergunte sobre seus gastos..."):
+        welcome_ph.empty() # Limpa a mensagem de boas-vindas imediatamente
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"): st.markdown(prompt)
 
-        with st.chat_message("assistant"):
-            try:
-                agent = get_agent(st.session_state.selected_model, st.session_state.api_key)
-                resp_box = st.empty()
-                full_resp = ""
-                for chunk in agent.run(prompt, stream=True):
-                    if chunk.content:
-                        full_resp += chunk.content
-                        resp_box.markdown(full_resp + "▌")
-                resp_box.markdown(full_resp)
-                st.session_state.messages.append({"role": "assistant", "content": full_resp})
-            except Exception as e:
-                st.error(f"Erro: {e}")
+        with chat_container:
+            with st.chat_message("user", avatar=user_avatar):
+                st.markdown(prompt)
+
+            with st.chat_message("assistant", avatar=ai_avatar):
+                with st.spinner("🔍 Analisando evidências..."):
+                    try:
+                        agent = get_agent(st.session_state.selected_model, st.session_state.api_key)
+
+                        # Constrói prompt com contexto das últimas mensagens para manter a memória da conversa
+                        history = st.session_state.messages[:-1][-6:] # Pega os últimos 3 turnos (excluindo a pergunta atual)
+                        if history:
+                            context_str = "\n".join([f"{msg['role']}: {msg['content']}" for msg in history])
+                            final_prompt = (
+                                f"Histórico da conversa:\n{context_str}\n\n"
+                                f"Pergunta atual: {prompt}\n"
+                                f"Responda à pergunta atual considerando o contexto acima se necessário."
+                            )
+                        else:
+                            final_prompt = prompt
+
+                        resp_box = st.empty()
+                        full_resp = ""
+                        for chunk in agent.run(final_prompt, stream=True):
+                            if chunk.content:
+                                full_resp += chunk.content
+                                resp_box.markdown(full_resp + "▌")
+                        resp_box.markdown(full_resp)
+                        st.session_state.messages.append({"role": "assistant", "content": full_resp})
+                    except Exception as e:
+                        st.error(f"❌ Ocorreu um erro na investigação: {e}")
