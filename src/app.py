@@ -1,4 +1,5 @@
 import streamlit as st
+from pathlib import Path
 from database import load_all_data, save_data
 from services.etl import extract_data_from_pdf
 
@@ -14,12 +15,26 @@ st.markdown("<style>.main-header {font-size: 2.5rem; font-weight: 700; color: #4
 
 # --- SIDEBAR (Upload) ---
 with st.sidebar:
-    st.image("https://img.icons8.com/color/96/sherlock-holmes.png", width=80)
+    current_dir = Path(__file__).parent
+    # Tenta encontrar o arquivo em src/assets ou na raiz/assets
+    logo_path = current_dir / "assets" / "logo_pandas_orms.png"
+
+    if not logo_path.exists():
+        # Fallback: Tenta na raiz do projeto se não achar em src/
+        logo_path = current_dir.parent / "assets" / "logo_pandas_orms.png"
+
+    if logo_path.exists():
+        st.image(str(logo_path), width=90)
+    else:
+        st.image("https://img.icons8.com/color/96/sherlock-holmes.png", width=80)
     st.markdown("## Sherlock Ohms")
     st.caption("Investigação Elementar de Energia")
     st.divider()
 
-    uploaded_file = st.file_uploader("Importar Fatura (PDF)", type=["pdf"])
+    if "uploader_key" not in st.session_state:
+        st.session_state.uploader_key = 0
+
+    uploaded_file = st.file_uploader("Importar Fatura (PDF)", type=["pdf"], key=f"uploader_{st.session_state.uploader_key}")
     password = st.text_input("Senha (se houver)", type="password")
 
     if uploaded_file and st.button("🔍 Processar", type="primary"):
@@ -31,6 +46,7 @@ with st.sidebar:
             if not df_fin.empty:
                 save_data(df_fin, df_med)
                 st.success("Salvo!")
+                st.session_state.uploader_key += 1
                 st.rerun()
             else:
                 st.error("Erro na leitura.")
