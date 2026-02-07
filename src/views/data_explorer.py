@@ -11,8 +11,8 @@ def render_data_explorer_tab(df_faturas, df_medicao):
         df_view = df_faturas.copy()
 
         # Garante numérico e renomeia para ficar bonito na tabela
-        df_view["Valor (R$)"] = pd.to_numeric(df_view["Valor (R$)"], errors='coerce').fillna(0)
-        df_view.rename(columns={"Valor (R$)": "Valor"}, inplace=True)
+        df_view["valor_total"] = pd.to_numeric(df_view["valor_total"], errors='coerce').fillna(0)
+        df_view.rename(columns={"valor_total": "Valor"}, inplace=True)
 
         c1, c2 = st.columns([1, 2])
         c1.metric("Registros", len(df_view))
@@ -20,9 +20,9 @@ def render_data_explorer_tab(df_faturas, df_medicao):
 
         # Renomeamos colunas diretamente para evitar conflito entre column_config e Styler
         df_view.rename(columns={
-            "Referência": "Mês/Ano",
-            "Itens de Fatura": "Descrição",
-            "Nº do Cliente": "Instalação"
+            "mes_referencia": "Mês/Ano",
+            "descricao": "Descrição",
+            "numero_cliente": "Instalação"
         }, inplace=True)
 
         # Definimos limites explícitos para garantir que o gráfico de barras apareça
@@ -44,12 +44,12 @@ def render_data_explorer_tab(df_faturas, df_medicao):
         df_view = df_medicao.copy()
         c1, c2 = st.columns([1, 2])
         c1.metric("Leituras", len(df_view))
-        if "Consumo kWh" in df_view.columns:
-            c2.metric("Consumo Total", f"{df_view['Consumo kWh'].sum():,.0f} kWh")
+        if "consumo_kwh" in df_view.columns:
+            c2.metric("Consumo Total", f"{df_view['consumo_kwh'].sum():,.0f} kWh")
 
         column_config = {
-            "Referência": st.column_config.TextColumn("Mês/Ano", width="small"),
-            "Consumo kWh": st.column_config.NumberColumn("Consumo", format="%d kWh"),
+            "mes_referencia": st.column_config.TextColumn("Mês/Ano", width="small"),
+            "consumo_kwh": st.column_config.NumberColumn("Consumo", format="%d kWh"),
         }
         st.dataframe(df_view, width="stretch", column_config=column_config, height=500, hide_index=True)
         filename = "medicao.csv"

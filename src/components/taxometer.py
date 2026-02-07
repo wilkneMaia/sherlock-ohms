@@ -16,12 +16,12 @@ def render_taxometer(df_fin_view):
         st.info("Sem dados para análise.")
         return
 
-    total_custo = df_fin_view["Valor (R$)"].sum()
+    total_custo = df_fin_view["valor_total"].sum()
     # ---------------------------------------------------------------------
 
     # --- A. CLASSIFICAÇÃO INTELIGENTE (CÓDIGO ORIGINAL) ---
     def classificar_detalhado(row):
-        nome = str(row["Itens de Fatura"]).upper()
+        nome = str(row["descricao"]).upper()
         if any(
             x in nome
             for x in ["BANDEIRA", "AMARELA", "VERMELHA", "ESCASSEZ", "ADICIONAL"]
@@ -37,17 +37,17 @@ def render_taxometer(df_fin_view):
     df_analise["Categoria Macro"] = df_analise.apply(classificar_detalhado, axis=1)
 
     # --- B. CÁLCULOS FINANCEIROS (CÓDIGO ORIGINAL) ---
-    val_icms = df_fin_view["ICMS"].sum() if "ICMS" in df_fin_view.columns else 0
+    val_icms = df_fin_view["valor_icms"].sum() if "valor_icms" in df_fin_view.columns else 0
     val_pis = (
-        df_fin_view["PIS/COFINS"].sum() if "PIS/COFINS" in df_fin_view.columns else 0
+        df_fin_view["pis_cofins"].sum() if "pis_cofins" in df_fin_view.columns else 0
     )
 
     # Pega valores das LINHAS classificadas como Taxas/Extras
     total_ilum = df_analise[df_analise["Categoria Macro"] == "🔦 Iluminação Pública"][
-        "Valor (R$)"
+        "valor_total"
     ].sum()
     total_extras = df_analise[df_analise["Categoria Macro"] == "🚩 Bandeiras/Extras"][
-        "Valor (R$)"
+        "valor_total"
     ].sum()
 
     # Soma de Impostos (Colunas + Linhas classificadas como imposto)
@@ -55,7 +55,7 @@ def render_taxometer(df_fin_view):
     if total_impostos_fed_est == 0:
         total_impostos_fed_est = df_analise[
             df_analise["Categoria Macro"] == "💸 Impostos (Fed/Est)"
-        ]["Valor (R$)"].sum()
+        ]["valor_total"].sum()
 
     # Total Geral de Encargos
     total_tributos = total_impostos_fed_est + total_ilum + total_extras
@@ -105,7 +105,7 @@ def render_taxometer(df_fin_view):
     ]
 
     for index, row in linhas_interesse.iterrows():
-        nome = row["Itens de Fatura"]
+        nome = row["descricao"]
         # Normalização de nomes
         nome_up = str(nome).upper()
         if "ILUM" in nome_up or "CIP" in nome_up:
@@ -129,7 +129,7 @@ def render_taxometer(df_fin_view):
         itens_mapa.append(
             {
                 "Item": nome,
-                "Valor (R$)": row["Valor (R$)"],
+                "Valor (R$)": row["valor_total"],
                 "Categoria Macro": cat_macro,
                 "Cor": cor_item,
             }

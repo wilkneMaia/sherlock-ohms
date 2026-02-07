@@ -28,14 +28,14 @@ except ImportError as e:
 # --- FUNÇÕES AUXILIARES ---
 def get_month_year_filter(df):
     """Extrai lista de Anos e Meses disponíveis para o filtro."""
-    if df.empty or "Referência" not in df.columns:
+    if df.empty or "mes_referencia" not in df.columns:
         return []
 
     # Assume formato "MES/ANO" (ex: JAN/2025)
     # Extrai o ANO para filtro macro
     anos = sorted(
         list(
-            set([x.split("/")[-1] for x in df["Referência"].unique() if "/" in str(x)])
+            set([x.split("/")[-1] for x in df["mes_referencia"].unique() if "/" in str(x)])
         )
     )
     return anos
@@ -64,10 +64,10 @@ def main():
     st.sidebar.header("🔍 Filtros Globais")
 
     # Filtro de Cliente (Se houver coluna e dados)
-    if "Nº do Cliente" in df_faturas.columns:
+    if "numero_cliente" in df_faturas.columns:
         # Pega clientes únicos ignorando nulos
         clientes_unicos = sorted(
-            [c for c in df_faturas["Nº do Cliente"].unique() if pd.notnull(c)]
+            [c for c in df_faturas["numero_cliente"].unique() if pd.notnull(c)]
         )
 
         # Só mostra o filtro se houver clientes identificados
@@ -77,10 +77,10 @@ def main():
             )
 
             # Filtra os DataFrames Globais
-            df_faturas = df_faturas[df_faturas["Nº do Cliente"] == cliente_selecionado]
-            if not df_medicao.empty and "Nº do Cliente" in df_medicao.columns:
+            df_faturas = df_faturas[df_faturas["numero_cliente"] == cliente_selecionado]
+            if not df_medicao.empty and "numero_cliente" in df_medicao.columns:
                 df_medicao = df_medicao[
-                    df_medicao["Nº do Cliente"] == cliente_selecionado
+                    df_medicao["numero_cliente"] == cliente_selecionado
                 ]
 
     # Filtro de Ano
@@ -96,13 +96,13 @@ def main():
     if ano_selecionado:
         # Filtra onde a string de Referência contém o Ano (ex: "2025")
         mask_ano_fat = (
-            df_faturas["Referência"].astype(str).str.contains(ano_selecionado, na=False)
+            df_faturas["mes_referencia"].astype(str).str.contains(ano_selecionado, na=False)
         )
         df_fat_view = df_faturas[mask_ano_fat].copy()
 
-        if not df_medicao.empty and "Referência" in df_medicao.columns:
+        if not df_medicao.empty and "mes_referencia" in df_medicao.columns:
             mask_ano_med = (
-                df_medicao["Referência"]
+                df_medicao["mes_referencia"]
                 .astype(str)
                 .str.contains(ano_selecionado, na=False)
             )
@@ -114,20 +114,20 @@ def main():
         df_med_view = df_medicao.copy()
 
     # Filtro Mês (Opcional - Multiselect)
-    meses_disponiveis = df_fat_view["Referência"].unique()
+    meses_disponiveis = df_fat_view["mes_referencia"].unique()
     meses_selecionados = st.sidebar.multiselect(
         "📆 Filtrar Meses (Opcional)", meses_disponiveis
     )
 
     if meses_selecionados:
-        df_fat_view = df_fat_view[df_fat_view["Referência"].isin(meses_selecionados)]
+        df_fat_view = df_fat_view[df_fat_view["mes_referencia"].isin(meses_selecionados)]
         if not df_med_view.empty:
             df_med_view = df_med_view[
-                df_med_view["Referência"].isin(meses_selecionados)
+                df_med_view["mes_referencia"].isin(meses_selecionados)
             ]
 
     # KPI Global do Período Filtrado
-    total_periodo = df_fat_view["Valor (R$)"].sum()
+    total_periodo = df_fat_view["valor_total"].sum()
     st.sidebar.markdown("---")
     st.sidebar.metric("💰 Total no Período", f"R$ {total_periodo:,.2f}")
 

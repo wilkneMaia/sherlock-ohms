@@ -18,9 +18,9 @@ def render_consumption_dashboard(df_medicao, df_faturas):
     df_med = df_medicao.copy()
 
     # Garante que Consumo é numérico (trata strings como "1.234,00")
-    if df_med["Consumo kWh"].dtype == object:
-        df_med["Consumo kWh"] = pd.to_numeric(
-            df_med["Consumo kWh"]
+    if df_med["consumo_kwh"].dtype == object:
+        df_med["consumo_kwh"] = pd.to_numeric(
+            df_med["consumo_kwh"]
             .astype(str)
             .str.replace(".", "")
             .str.replace(",", "."),
@@ -28,17 +28,17 @@ def render_consumption_dashboard(df_medicao, df_faturas):
         ).fillna(0)
 
     # Garante que N° Dias é numérico para cálculo de média diária
-    if "N° Dias" in df_med.columns:
-        df_med["N° Dias"] = pd.to_numeric(df_med["N° Dias"], errors="coerce").fillna(30)
+    if "numero_dias" in df_med.columns:
+        df_med["numero_dias"] = pd.to_numeric(df_med["numero_dias"], errors="coerce").fillna(30)
 
     # --- SEPARAÇÃO: CONSUMO vs INJEÇÃO ---
     df_cons = df_med.copy()
     df_inj = pd.DataFrame()
 
-    if "P.Horário/Segmento" in df_med.columns:
+    if "segmento" in df_med.columns:
         # Identifica linhas de Geração Solar (Injetada)
         mask_inj = (
-            df_med["P.Horário/Segmento"]
+            df_med["segmento"]
             .astype(str)
             .str.contains("INJ|Gera|Injetada", case=False, na=False)
         )
@@ -47,11 +47,11 @@ def render_consumption_dashboard(df_medicao, df_faturas):
 
     # 1. Agrupa Consumo
     df_view_cons = (
-        df_cons.groupby("Referência")
+        df_cons.groupby("mes_referencia")
         .agg(
             {
-                "Consumo kWh": "sum",
-                "N° Dias": "max",  # Pega o maior número de dias registrado no mês
+                "consumo_kwh": "sum",
+                "numero_dias": "max",  # Pega o maior número de dias registrado no mês
             }
         )
         .reset_index()
@@ -59,53 +59,53 @@ def render_consumption_dashboard(df_medicao, df_faturas):
 
     # 2. Agrupa Injeção (se houver)
     if not df_inj.empty:
-        df_view_inj = df_inj.groupby("Referência")["Consumo kWh"].sum().reset_index()
-        df_view_inj.rename(columns={"Consumo kWh": "Injetado kWh"}, inplace=True)
+        df_view_inj = df_inj.groupby("mes_referencia")["consumo_kwh"].sum().reset_index()
+        df_view_inj.rename(columns={"consumo_kwh": "injetado_kwh"}, inplace=True)
     else:
-        df_view_inj = pd.DataFrame(columns=["Referência", "Injetado kWh"])
+        df_view_inj = pd.DataFrame(columns=["mes_referencia", "injetado_kwh"])
 
     # 3. Merge (Consumo + Injeção)
     df_merged = pd.merge(
-        df_view_cons, df_view_inj, on="Referência", how="outer"
+        df_view_cons, df_view_inj, on="mes_referencia", how="outer"
     ).fillna(0)
 
     # Ordenação Cronológica
     try:
         df_merged["Data_Ordenacao"] = pd.to_datetime(
-            df_merged["Referência"], format="%b/%Y", errors="coerce"
+            df_merged["mes_referencia"], format="%b/%Y", errors="coerce"
         )
         df_merged = df_merged.sort_values("Data_Ordenacao")
     except:
         pass
 
     # Cálculos Derivados
-    df_merged["Média Diária (kWh)"] = df_merged["Consumo kWh"] / df_merged["N° Dias"]
-    df_merged["Saldo kWh"] = df_merged["Consumo kWh"] - df_merged["Injetado kWh"]
+    df_merged["Média Diária (kWh)"] = df_merged["consumo_kwh"] / df_merged["numero_dias"]
+    df_merged["Saldo kWh"] = df_merged["consumo_kwh"] - df_merged["injetado_kwh"]
 
     # --- 2. CÁLCULO DE EFICIÊNCIA (R$/kWh) ---
     # Cruzamos com o financeiro para saber quanto custou cada kWh naquele mês
     if not df_faturas.empty:
-        df_fin_agg = df_faturas.groupby("Referência")["Valor (R$)"].sum().reset_index()
-        df_merged = pd.merge(df_merged, df_fin_agg, on="Referência", how="left")
+        df_fin_agg = df_faturas.groupby("mes_referencia")["valor_total"].sum().reset_index()
+        df_merged = pd.merge(df_merged, df_fin_agg, on="mes_referencia", how="left")
 
         # Cálculo do Custo Efetivo (Conta Total / Total kWh)
         # Evita divisão por zero
         df_merged["Custo Médio (R$/kWh)"] = df_merged.apply(
-            lambda x: x["Valor (R$)"] / x["Consumo kWh"] if x["Consumo kWh"] > 0 else 0,
+            lambda x: x["valor_total"] / x["consumo_kwh"] if x["consumo_kwh"] > 0 else 0,
             axis=1,
         )
 
         # --- MELHORIA: TARIFA CHEIA PARA SOLAR ---
-        if "Preço unit (R$) com tributos" in df_faturas.columns:
+        if "preco_unitario" in df_faturas.columns:
             df_tarifa = (
-                df_faturas.groupby("Referência")["Preço unit (R$) com tributos"]
+                df_faturas.groupby("mes_referencia")["preco_unitario"]
                 .max()
                 .reset_index()
             )
             df_tarifa.rename(
-                columns={"Preço unit (R$) com tributos": "Tarifa Cheia"}, inplace=True
+                columns={"preco_unitario": "Tarifa Cheia"}, inplace=True
             )
-            df_merged = pd.merge(df_merged, df_tarifa, on="Referência", how="left")
+            df_merged = pd.merge(df_merged, df_tarifa, on="mes_referencia", how="left")
             df_merged["Tarifa Cheia"] = df_merged["Tarifa Cheia"].fillna(0)
         else:
             df_merged["Tarifa Cheia"] = 0
@@ -122,8 +122,8 @@ def render_consumption_dashboard(df_medicao, df_faturas):
     )
 
     # --- 3. KPIs (INDICADORES) ---
-    total_kwh = df_merged["Consumo kWh"].sum()
-    total_inj = df_merged["Injetado kWh"].sum()
+    total_kwh = df_merged["consumo_kwh"].sum()
+    total_inj = df_merged["injetado_kwh"].sum()
     saldo_periodo = total_kwh - total_inj
 
     custo_medio_periodo = df_merged["Custo Médio (R$/kWh)"].mean()
@@ -159,20 +159,20 @@ def render_consumption_dashboard(df_medicao, df_faturas):
 
         # Prepara dados para gráfico agrupado
         df_melted = df_merged.melt(
-            id_vars=["Referência"],
-            value_vars=["Consumo kWh", "Injetado kWh"],
+            id_vars=["mes_referencia"],
+            value_vars=["consumo_kwh", "injetado_kwh"],
             var_name="Tipo",
             value_name="kWh",
         )
 
         fig_bar = px.bar(
             df_melted,
-            x="Referência",
+            x="mes_referencia",
             y="kWh",
             color="Tipo",
             barmode="group",  # Barras lado a lado
             text_auto=".0f",
-            color_discrete_map={"Consumo kWh": "#2E86C1", "Injetado kWh": "#2ECC71"},
+            color_discrete_map={"consumo_kwh": "#2E86C1", "injetado_kwh": "#2ECC71"},
         )
 
         fig_bar.update_layout(
@@ -187,7 +187,7 @@ def render_consumption_dashboard(df_medicao, df_faturas):
         )
         fig_line = px.line(
             df_merged,
-            x="Referência",
+            x="mes_referencia",
             y="Custo Médio (R$/kWh)",
             markers=True,
             line_shape="spline",
@@ -205,12 +205,12 @@ def render_consumption_dashboard(df_medicao, df_faturas):
             # Estimativa: kWh Injetado * Tarifa Cheia (Custo Evitado Real)
             # Calcula mês a mês para maior precisão
             economia_estimada = (
-                df_merged["Injetado kWh"] * df_merged["Tarifa Base Calc"]
+                df_merged["injetado_kwh"] * df_merged["Tarifa Base Calc"]
             ).sum()
 
             # --- REALIDADE: O que veio na conta (Soma dos itens negativos) ---
             credito_real = (
-                df_faturas[df_faturas["Valor (R$)"] < 0]["Valor (R$)"].abs().sum()
+                df_faturas[df_faturas["valor_total"] < 0]["valor_total"].abs().sum()
             )
             diff_impostos = economia_estimada - credito_real
 
@@ -258,8 +258,8 @@ def render_consumption_dashboard(df_medicao, df_faturas):
 
                     if not match.empty:
                         ant_row = match.iloc[0]
-                        cons_atual = last_row["Consumo kWh"]
-                        cons_ant = ant_row["Consumo kWh"]
+                        cons_atual = last_row["consumo_kwh"]
+                        cons_ant = ant_row["consumo_kwh"]
                         delta_pct = (
                             ((cons_atual - cons_ant) / cons_ant * 100)
                             if cons_ant > 0
@@ -267,11 +267,11 @@ def render_consumption_dashboard(df_medicao, df_faturas):
                         )
 
                         st.metric(
-                            f"📅 Comparativo Anual ({last_row['Referência']})",
+                            f"📅 Comparativo Anual ({last_row['mes_referencia']})",
                             f"{cons_atual:.0f} kWh",
                             f"{delta_pct:+.1f}% vs Ano Anterior",
                             delta_color="inverse",  # Inverte: Aumento é vermelho (ruim), Queda é verde (bom)
-                            help=f"Comparado com {ant_row['Referência']} ({cons_ant:.0f} kWh)",
+                            help=f"Comparado com {ant_row['mes_referencia']} ({cons_ant:.0f} kWh)",
                         )
                     else:
                         st.info(

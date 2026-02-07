@@ -367,6 +367,84 @@ def extract_invoice_data(file_path, password=None):
         return None
 
 
+# --- FUNÇÃO DE PADRONIZAÇÃO E LIMPEZA ---
+
+def clean_and_standardize_data(df: pd.DataFrame, schema_type: str) -> pd.DataFrame:
+    """
+    Limpa os dados extraídos, converte tipos numéricos e padroniza cabeçalhos.
+    """
+    if df.empty:
+        return df
+
+    # Definição de Schemas (Colunas Numéricas e Regras)
+    schemas = {
+        "financeiro": {
+            "numeric_cols": [
+                "quantidade", "preco_unitario", "valor_total",
+                "pis_cofins", "base_calculo_icms", "aliquota_icms",
+                "valor_icms", "tarifa_unitaria"
+            ],
+            "rename_map": {
+                "Itens de Fatura": "descricao",
+                "Unid.": "unidade",
+                "Quant.": "quantidade",
+                "Preço unit (R$) com tributos": "preco_unitario",
+                "Valor (R$)": "valor_total",
+                "PIS/COFINS": "pis_cofins",
+                "Base Calc ICMS (R$)": "base_calculo_icms",
+                "Alíquota ICMS": "aliquota_icms",
+                "ICMS": "valor_icms",
+                "Tarifa unit (R$)": "tarifa_unitaria",
+                "Referência": "mes_referencia",
+                "Nº do Cliente": "numero_cliente"
+            },
+            "fill_na": True
+        },
+        "medicao": {
+            "numeric_cols": [
+                "leitura_anterior", "leitura_atual", "fator_multiplicador",
+                "consumo_kwh", "numero_dias"
+            ],
+            "rename_map": {
+                "Leitura (Anterior)": "leitura_anterior",
+                "Leitura (Atual)": "leitura_atual",
+                "Fator Multiplicador": "fator_multiplicador",
+                "Consumo kWh": "consumo_kwh",
+                "N° Dias": "numero_dias",
+                "Referência": "mes_referencia",
+                "Nº do Cliente": "numero_cliente",
+                "N° Medidor": "numero_medidor",
+                "P.Horário/Segmento": "segmento",
+                "Data Leitura (Anterior)": "data_leitura_anterior",
+                "Data Leitura (Atual)": "data_leitura_atual"
+            },
+            "fill_na": False
+        }
+    }
+
+    config = schemas.get(schema_type)
+    if not config:
+        return df
+
+    # 1. Padronização de Nomes (Renomeação)
+    if config.get("rename_map"):
+        df = df.rename(columns=config["rename_map"])
+
+    # 2. Conversão e Limpeza de Colunas Numéricas
+    for col in config["numeric_cols"]:
+        if col in df.columns:
+            # Normaliza string (ex: "100-" -> "-100") e converte para numérico
+            df[col] = df[col].astype(str).apply(normalize_negative_value).str.strip()
+            converted = pd.to_numeric(df[col], errors="coerce")
+
+            if config["fill_na"]:
+                converted = converted.fillna(0)
+
+            df[col] = converted
+
+    return df
+
+
 # --- FUNÇÃO DE INTERFACE (Compatível com a Nova Arquitetura) ---
 
 
@@ -395,26 +473,8 @@ def extract_data_from_pdf(file_path, password=None):
         df_fin["Referência"] = reference
         df_fin["Nº do Cliente"] = client_id
 
-        # Converte valores numéricos de string para float
-        numeric_cols = [
-            "Quant.",
-            "Preço unit (R$) com tributos",
-            "Valor (R$)",
-            "PIS/COFINS",
-            "Base Calc ICMS (R$)",
-            "Alíquota ICMS",
-            "ICMS",
-            "Tarifa unit (R$)",
-        ]
-
-        for col in numeric_cols:
-            if col in df_fin.columns:
-                # Normaliza valores negativos e converte para string
-                df_fin[col] = (
-                    df_fin[col].astype(str).apply(normalize_negative_value).str.strip()
-                )
-                # Converte para float, ignorando valores vazios ou inválidos
-                df_fin[col] = pd.to_numeric(df_fin[col], errors="coerce").fillna(0)
+        # Aplica limpeza e padronização
+        df_fin = clean_and_standardize_data(df_fin, "financeiro")
     else:
         df_fin = pd.DataFrame()
 
@@ -426,23 +486,8 @@ def extract_data_from_pdf(file_path, password=None):
         df_med["Referência"] = reference
         df_med["Nº do Cliente"] = client_id
 
-        # Converte valores numéricos de string para float
-        numeric_cols_med = [
-            "Leitura (Anterior)",
-            "Leitura (Atual)",
-            "Fator Multiplicador",
-            "Consumo kWh",
-            "N° Dias",
-        ]
-
-        for col in numeric_cols_med:
-            if col in df_med.columns:
-                # Normaliza valores negativos e converte para string
-                df_med[col] = (
-                    df_med[col].astype(str).apply(normalize_negative_value).str.strip()
-                )
-                # Converte para float, ignorando valores vazios ou inválidos
-                df_med[col] = pd.to_numeric(df_med[col], errors="coerce")
+        # Aplica limpeza e padronização
+        df_med = clean_and_standardize_data(df_med, "medicao")
     else:
         df_med = pd.DataFrame()
 

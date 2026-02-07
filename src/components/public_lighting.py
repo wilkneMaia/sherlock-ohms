@@ -90,7 +90,7 @@ def render_public_lighting(df_fin_view, df_med_view):
 
     # Filtra CIP
     mask_ilum = (
-        df_fin_view["Itens de Fatura"]
+        df_fin_view["descricao"]
         .astype(str)
         .str.contains("ILUM|CIP|PUB", case=False, na=False)
     )
@@ -102,35 +102,35 @@ def render_public_lighting(df_fin_view, df_med_view):
 
     # Prepara Dados Financeiros
     df_cip = (
-        df_fin_view[mask_ilum].groupby("Referência")["Valor (R$)"].sum().reset_index()
+        df_fin_view[mask_ilum].groupby("mes_referencia")["valor_total"].sum().reset_index()
     )
-    df_cip.rename(columns={"Valor (R$)": "R$ Pago"}, inplace=True)
+    df_cip.rename(columns={"valor_total": "R$ Pago"}, inplace=True)
 
     # Prepara Dados de Consumo
-    if df_med_view.empty or "Consumo kWh" not in df_med_view.columns:
+    if df_med_view.empty or "consumo_kwh" not in df_med_view.columns:
         st.error(
             "❌ Dados de Medição (Consumo) não encontrados. Verifique se o extrator capturou a tabela de leitura."
         )
         return
 
     # Filtra Injetada se houver
-    if "P.Horário/Segmento" in df_med_view.columns:
+    if "segmento" in df_med_view.columns:
         mask_inj = (
-            df_med_view["P.Horário/Segmento"]
+            df_med_view["segmento"]
             .astype(str)
             .str.contains("INJ|Gera|Injetada", case=False, na=False)
         )
         df_cons = (
             df_med_view[~mask_inj]
-            .groupby("Referência")["Consumo kWh"]
+            .groupby("mes_referencia")["consumo_kwh"]
             .sum()
             .reset_index()
         )
     else:
-        df_cons = df_med_view.groupby("Referência")["Consumo kWh"].sum().reset_index()
+        df_cons = df_med_view.groupby("mes_referencia")["consumo_kwh"].sum().reset_index()
 
     # Merge (Cruzamento)
-    df_audit = pd.merge(df_cip, df_cons, on="Referência", how="inner")
+    df_audit = pd.merge(df_cip, df_cons, on="mes_referencia", how="inner")
 
     if df_audit.empty:
         st.warning(
@@ -142,9 +142,9 @@ def render_public_lighting(df_fin_view, df_med_view):
     # Aqui o lambda chama get_law_rate(x) passando apenas 1 argumento.
     # Nossa correção lá em cima (cl=None) garante que isso funcione agora.
     df_audit["Alíquota Lei"] = (
-        df_audit["Consumo kWh"].apply(lambda x: get_law_rate(x)) * 100
+        df_audit["consumo_kwh"].apply(lambda x: get_law_rate(x)) * 100
     )
-    df_audit["R$ Lei"] = df_audit["Consumo kWh"].apply(
+    df_audit["R$ Lei"] = df_audit["consumo_kwh"].apply(
         lambda x: get_cip_expected_value(x)
     )
 
@@ -226,7 +226,7 @@ def render_public_lighting(df_fin_view, df_med_view):
         k_max.metric(
             lbl_destaque,
             f"R$ {abs(row_destaque['Desvio']):,.2f}",
-            delta=f"Em {row_destaque['Referência']}",
+            delta=f"Em {row_destaque['mes_referencia']}",
             delta_color=cor_destaque,
         )
     else:
@@ -237,7 +237,7 @@ def render_public_lighting(df_fin_view, df_med_view):
     with c_chart:
         st.caption("📈 Evolução: Alíquota Legal vs. Real Cobrada")
         df_melted_aliq = df_audit.melt(
-            id_vars=["Referência"],
+            id_vars=["mes_referencia"],
             value_vars=["Alíquota Lei", "Alíquota paga"],
             var_name="Tipo",
             value_name="Alíquota (%)",
@@ -245,7 +245,7 @@ def render_public_lighting(df_fin_view, df_med_view):
 
         try:
             df_melted_aliq["Data_Ordenacao"] = pd.to_datetime(
-                df_melted_aliq["Referência"], format="%b/%Y", errors="coerce"
+                df_melted_aliq["mes_referencia"], format="%b/%Y", errors="coerce"
             )
             df_melted_aliq = df_melted_aliq.sort_values("Data_Ordenacao")
         except Exception:
@@ -253,7 +253,7 @@ def render_public_lighting(df_fin_view, df_med_view):
 
         fig_aliq = px.line(
             df_melted_aliq,
-            x="Referência",
+            x="mes_referencia",
             y="Alíquota (%)",
             color="Tipo",
             markers=True,
@@ -272,21 +272,21 @@ def render_public_lighting(df_fin_view, df_med_view):
         if not divergencias.empty:
             st.caption("📋 Lista de Inconsistências (Lei vs Real)")
             out_df = divergencias.copy()
-            out_df["Consumo"] = out_df["Consumo kWh"].astype(int).astype(str) + " kWh"
+            out_df["Consumo"] = out_df["consumo_kwh"].astype(int).astype(str) + " kWh"
             out_df["Lei"] = out_df["Alíquota Lei"].map("{:.2f}%".format)
             out_df["Real"] = out_df["Alíquota paga"].map("{:.2f}%".format)
             out_df["Diff"] = out_df["Diff Alíquota"].map("{:+.2f}%".format)
 
             try:
                 out_df["_dt"] = pd.to_datetime(
-                    out_df["Referência"], format="%b/%Y", errors="coerce"
+                    out_df["mes_referencia"], format="%b/%Y", errors="coerce"
                 )
                 out_df = out_df.sort_values("_dt")
             except:
                 pass
 
             st.dataframe(
-                out_df[["Referência", "Consumo", "Lei", "Real", "Diff"]],
+                out_df[["mes_referencia", "Consumo", "Lei", "Real", "Diff"]],
                 width="stretch",
                 hide_index=True,
                 height=400,
@@ -300,14 +300,14 @@ def render_public_lighting(df_fin_view, df_med_view):
     with col1:
         st.write("### 🔍 Comparativo Mensal")
         df_melted = df_audit.melt(
-            id_vars=["Referência"],
+            id_vars=["mes_referencia"],
             value_vars=["R$ Pago", "R$ Lei"],
             var_name="Tipo",
             value_name="Valor (R$)",
         )
         fig = px.bar(
             df_melted,
-            x="Referência",
+            x="mes_referencia",
             y="Valor (R$)",
             color="Tipo",
             barmode="group",
@@ -321,8 +321,8 @@ def render_public_lighting(df_fin_view, df_med_view):
         st.dataframe(
             df_audit[
                 [
-                    "Referência",
-                    "Consumo kWh",
+                    "mes_referencia",
+                    "consumo_kwh",
                     "Alíquota Lei",
                     "Alíquota paga",
                     "R$ Lei",

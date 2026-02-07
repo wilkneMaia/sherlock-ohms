@@ -20,7 +20,7 @@ def init_db():
     if not os.path.exists(FILE_MEDICAO):
         pd.DataFrame().to_parquet(FILE_MEDICAO)
 
-def _upsert_dataframe(df_new, file_path, keys=["Referência"]):
+def _upsert_dataframe(df_new, file_path, keys=["mes_referencia"]):
     if df_new.empty:
         return False
 
@@ -58,16 +58,16 @@ def save_data(df_financeiro, df_medicao):
     success_fin = True
     success_med = True
 
-    keys_fin = ["Referência"]
-    if "Nº do Cliente" in df_financeiro.columns:
-        keys_fin.append("Nº do Cliente")
+    keys_fin = ["mes_referencia"]
+    if "numero_cliente" in df_financeiro.columns:
+        keys_fin.append("numero_cliente")
 
     if not df_financeiro.empty:
         success_fin = _upsert_dataframe(df_financeiro, FILE_FATURAS, keys=keys_fin)
 
-    keys_med = ["Referência"]
-    if "Nº do Cliente" in df_medicao.columns:
-        keys_med.append("Nº do Cliente")
+    keys_med = ["mes_referencia"]
+    if "numero_cliente" in df_medicao.columns:
+        keys_med.append("numero_cliente")
 
     if not df_medicao.empty:
         success_med = _upsert_dataframe(df_medicao, FILE_MEDICAO, keys=keys_med)

@@ -16,18 +16,18 @@ def render_financial_flow(df_fin_view):
 
     # --- PREPARAÇÃO DOS DADOS ---
     # 1. Agrupa por Item de Fatura incluindo ICMS e PIS/COFINS
-    agg_dict = {"Valor (R$)": "sum"}
-    if "ICMS" in df_fin_view.columns:
-        agg_dict["ICMS"] = "sum"
-    if "PIS/COFINS" in df_fin_view.columns:
-        agg_dict["PIS/COFINS"] = "sum"
+    agg_dict = {"valor_total": "sum"}
+    if "valor_icms" in df_fin_view.columns:
+        agg_dict["valor_icms"] = "sum"
+    if "pis_cofins" in df_fin_view.columns:
+        agg_dict["pis_cofins"] = "sum"
 
-    df_fat = df_fin_view.groupby("Itens de Fatura").agg(agg_dict).reset_index()
+    df_fat = df_fin_view.groupby("descricao").agg(agg_dict).reset_index()
 
     # 2. Define Tipo (Despesa vs Economia) e Cores
     # Valores positivos são Cobranças (Despesa) -> Vermelho
     # Valores negativos são Devoluções/Créditos (Economia) -> Verde
-    df_fat["Tipo"] = df_fat["Valor (R$)"].apply(
+    df_fat["Tipo"] = df_fat["valor_total"].apply(
         lambda x: "Despesa" if x > 0 else "Economia"
     )
 
@@ -35,11 +35,11 @@ def render_financial_flow(df_fin_view):
     color_map = {"Despesa": "#EF553B", "Economia": "#00CC96"}
 
     # 3. Cria Valor Absoluto para os gráficos (para a barra verde crescer pra direita também)
-    df_fat["Valor_Abs"] = df_fat["Valor (R$)"].abs()
+    df_fat["Valor_Abs"] = df_fat["valor_total"].abs()
 
     # 4. Dados para o Balanço (Totais)
-    total_despesas = df_fat[df_fat["Valor (R$)"] > 0]["Valor (R$)"].sum()
-    total_economia = df_fat[df_fat["Valor (R$)"] < 0]["Valor_Abs"].sum()
+    total_despesas = df_fat[df_fat["valor_total"] > 0]["valor_total"].sum()
+    total_economia = df_fat[df_fat["valor_total"] < 0]["Valor_Abs"].sum()
     saldo_final = total_despesas - total_economia
 
     # --- VISUALIZAÇÃO ---
@@ -100,13 +100,13 @@ def render_financial_flow(df_fin_view):
 
         # Cria texto customizado com ICMS e PIS/COFINS
         def criar_texto_detalhado(row):
-            partes = [f"R$ {row['Valor (R$)']:,.2f}"]
-            if "ICMS" in df_fat.columns:
-                icms_val = row.get("ICMS", 0) or 0
+            partes = [f"R$ {row['valor_total']:,.2f}"]
+            if "valor_icms" in df_fat.columns:
+                icms_val = row.get("valor_icms", 0) or 0
                 if icms_val != 0:
                     partes.append(f"ICMS: {icms_val:,.2f}")
-            if "PIS/COFINS" in df_fat.columns:
-                pis_val = row.get("PIS/COFINS", 0) or 0
+            if "pis_cofins" in df_fat.columns:
+                pis_val = row.get("pis_cofins", 0) or 0
                 if pis_val != 0:
                     partes.append(f"PIS: {pis_val:,.2f}")
             return " | ".join(partes) if len(partes) > 1 else partes[0]
@@ -115,20 +115,20 @@ def render_financial_flow(df_fin_view):
 
         # Prepara hover_data com ICMS e PIS/COFINS
         hover_data_dict = {}
-        if "ICMS" in df_fat.columns:
-            hover_data_dict["ICMS"] = ":,.2f"
-        if "PIS/COFINS" in df_fat.columns:
-            hover_data_dict["PIS/COFINS"] = ":,.2f"
+        if "valor_icms" in df_fat.columns:
+            hover_data_dict["valor_icms"] = ":,.2f"
+        if "pis_cofins" in df_fat.columns:
+            hover_data_dict["pis_cofins"] = ":,.2f"
 
         fig_rank = px.bar(
             df_fat,
             x="Valor_Abs",
-            y="Itens de Fatura",
+            y="descricao",
             orientation="h",
             color="Tipo",
             text="Texto_Detalhado",  # Mostra valor + impostos no texto
             hover_data={
-                "Valor (R$)": ":,.2f",
+                "valor_total": ":,.2f",
                 **hover_data_dict,
             },
             color_discrete_map=color_map,
@@ -154,12 +154,12 @@ def render_financial_flow(df_fin_view):
     st.markdown("### 📈 Evolução do Valor da Conta")
 
     # Agrupa por mês para a linha principal
-    df_evolucao = df_fin_view.groupby("Referência")["Valor (R$)"].sum().reset_index()
+    df_evolucao = df_fin_view.groupby("mes_referencia")["valor_total"].sum().reset_index()
 
     # Ordenação Cronológica
     try:
         df_evolucao["Data_Ordenacao"] = pd.to_datetime(
-            df_evolucao["Referência"], format="%b/%Y", errors="coerce"
+            df_evolucao["mes_referencia"], format="%b/%Y", errors="coerce"
         )
         df_evolucao = df_evolucao.sort_values("Data_Ordenacao")
     except Exception:
@@ -168,27 +168,27 @@ def render_financial_flow(df_fin_view):
     if not df_evolucao.empty:
         # Identifica meses com Bandeira Vermelha nos itens originais
         meses_vermelhos = df_fin_view[
-            df_fin_view["Itens de Fatura"]
+            df_fin_view["descricao"]
             .astype(str)
             .str.contains("VERMELHA", case=False, na=False)
-        ]["Referência"].unique()
+        ]["mes_referencia"].unique()
 
         # Cria a linha de evolução padrão
         fig_evolucao = px.line(
             df_evolucao,
-            x="Referência",
-            y="Valor (R$)",
+            x="mes_referencia",
+            y="valor_total",
             markers=True,
             line_shape="spline",
         )
         fig_evolucao.update_traces(line_color="#00CC96", line_width=3)
 
         # Adiciona destaque (Pontos Vermelhos) onde houve Bandeira Vermelha
-        df_red = df_evolucao[df_evolucao["Referência"].isin(meses_vermelhos)]
+        df_red = df_evolucao[df_evolucao["mes_referencia"].isin(meses_vermelhos)]
         if not df_red.empty:
             fig_evolucao.add_scatter(
-                x=df_red["Referência"],
-                y=df_red["Valor (R$)"],
+                x=df_red["mes_referencia"],
+                y=df_red["valor_total"],
                 mode="markers",
                 marker=dict(color="#EF553B", size=12, symbol="diamond"),
                 name="Bandeira Vermelha",
@@ -208,12 +208,12 @@ def render_financial_flow(df_fin_view):
         st.markdown("#### 🧠 Análise de Tendência")
         col_i1, col_i2, col_i3 = st.columns(3)
 
-        media_mensal = df_evolucao["Valor (R$)"].mean()
-        max_val = df_evolucao["Valor (R$)"].max()
-        mes_max = df_evolucao.loc[df_evolucao["Valor (R$)"].idxmax(), "Referência"]
+        media_mensal = df_evolucao["valor_total"].mean()
+        max_val = df_evolucao["valor_total"].max()
+        mes_max = df_evolucao.loc[df_evolucao["valor_total"].idxmax(), "mes_referencia"]
 
         # Comparação último mês vs média
-        ultimo_val = df_evolucao.iloc[-1]["Valor (R$)"]
+        ultimo_val = df_evolucao.iloc[-1]["valor_total"]
         diff_media = ultimo_val - media_mensal
 
         col_i1.metric("Média Mensal", f"R$ {media_mensal:,.2f}")
@@ -223,7 +223,7 @@ def render_financial_flow(df_fin_view):
 
         status_media = "Acima da Média" if diff_media > 0 else "Abaixo da Média"
         col_i3.metric(
-            f"Última Fatura ({df_evolucao.iloc[-1]['Referência']})",
+            f"Última Fatura ({df_evolucao.iloc[-1]['mes_referencia']})",
             f"R$ {ultimo_val:,.2f}",
             f"{status_media} (R$ {diff_media:,.2f})",
             delta_color="inverse",
