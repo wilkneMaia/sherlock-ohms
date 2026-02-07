@@ -1,9 +1,9 @@
-import streamlit as st
 from pathlib import Path
+import streamlit as st
 from database import load_all_data, save_data
-from services.etl import extract_data_from_pdf
 
 # Importa as views modularizadas
+from services.extractor import extract_data_from_pdf
 from views.dashboard import render_dashboard_tab
 from views.investigation import render_investigation_tab
 from views.data_explorer import render_data_explorer_tab

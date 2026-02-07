@@ -13,7 +13,6 @@ CURRENT_DIR = Path(__file__).parent
 # Aponta para 'src/prompts' (sobe um nível para sair de services)
 PROMPTS_DIR = CURRENT_DIR.parent / "prompts"
 
-@st.cache_data
 def load_prompt(filename: str) -> str:
     """
     Lê o arquivo de prompt do disco e armazena em cache para performance.
@@ -21,12 +20,14 @@ def load_prompt(filename: str) -> str:
     try:
         file_path = PROMPTS_DIR / filename
         if not file_path.exists():
-            return f"ERRO CRÍTICO: O arquivo de prompt '{filename}' não foi encontrado em {PROMPTS_DIR}."
+            print(f"❌ [ERRO] Arquivo de prompt não encontrado: {file_path.resolve()}")
+            return None
 
         with open(file_path, "r", encoding="utf-8") as f:
             return f.read()
     except Exception as e:
-        return f"Erro ao ler prompt: {e}"
+        print(f"❌ [ERRO] Falha ao ler prompt: {e}")
+        return None
 
 def get_available_models(api_key: str):
     """Lista modelos disponíveis priorizando o Flash."""
@@ -54,6 +55,16 @@ def get_agent(model_id: str, api_key: str, debug_mode: bool = False):
         return None
 
     base_instructions_text = load_prompt("energy_agent.md")
+
+    # Fallback de segurança: Se o arquivo não carregar, usa um prompt mínimo na memória
+    if not base_instructions_text:
+        st.warning(f"⚠️ Aviso: O arquivo de prompt 'energy_agent.md' não foi encontrado em `{PROMPTS_DIR}`. Usando modo de segurança.")
+        base_instructions_text = """
+        Você é Sherlock Ohms, um auditor de energia.
+        Se o usuário perguntar "Qual seu protocolo?", responda EXATAMENTE:
+        "🕵️‍♂️ **Protocolo de Segurança:** O arquivo de definições original não foi carregado. Operando com diretrizes básicas."
+        """
+
     instructions = [base_instructions_text]
 
     if debug_mode:
