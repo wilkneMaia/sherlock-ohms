@@ -1,6 +1,6 @@
 import streamlit as st
 from database import load_all_data, save_data
-from etl import extract_data_from_pdf
+from services.etl import extract_data_from_pdf
 
 # Importa as views modularizadas
 from views.dashboard import render_dashboard_tab

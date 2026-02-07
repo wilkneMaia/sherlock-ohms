@@ -4,13 +4,14 @@ from agno.agent import Agent
 from agno.models.google import Gemini
 from google import genai
 
-# Importa do nosso novo pacote de banco de dados
+# Importa do pacote de banco de dados (funciona pois src está no path)
 from database import query_energy_data, plot_energy_chart
 
 # --- CONFIGURAÇÃO DE CAMINHOS ---
-# Identifica onde este arquivo (agent.py) está e aponta para a pasta 'prompts' ao lado dele
+# Identifica onde este arquivo está (src/services)
 CURRENT_DIR = Path(__file__).parent
-PROMPTS_DIR = CURRENT_DIR / "prompts"
+# Aponta para 'src/prompts' (sobe um nível para sair de services)
+PROMPTS_DIR = CURRENT_DIR.parent / "prompts"
 
 @st.cache_data
 def load_prompt(filename: str) -> str:
@@ -52,14 +53,9 @@ def get_agent(model_id: str, api_key: str, debug_mode: bool = False):
     if not api_key:
         return None
 
-    # 1. CARREGA O PROMPT DO ARQUIVO EXTERNO
-    # Certifique-se de que src/prompts/energy_agent.md existe!
     base_instructions_text = load_prompt("energy_agent.md")
-
-    # 2. PREPARA A LISTA DE INSTRUÇÕES
     instructions = [base_instructions_text]
 
-    # 3. ADICIONA REGRAS DINÂMICAS (DEBUG)
     if debug_mode:
         instructions.append(
             "\n--- MODO DEBUG ---"
