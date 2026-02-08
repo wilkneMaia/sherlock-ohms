@@ -102,35 +102,31 @@ def render_dashboard_tab(df_faturas, df_medicao):
     qtd_faturas = df_fin_view["mes_referencia"].nunique()
 
     k1, k2, k3, k4 = st.columns(4)
-    with k1.container(border=True): st.metric("💸 Total Pago", f"R$ {total_gasto:,.2f}")
-    with k2.container(border=True): st.metric("⚡ Consumo Total", f"{total_kwh:,.0f} kWh")
-    with k3.container(border=True): st.metric("📊 Custo Real Médio", f"R$ {preco_medio:.2f} / kWh")
-    with k4.container(border=True): st.metric("📅 Faturas Analisadas", qtd_faturas)
+    with k1.container(border=True): st.metric("💸 Total Pago", f"R$ {total_gasto:,.2f}", help="Soma do valor total pago em todas as faturas do período selecionado.")
+    with k2.container(border=True): st.metric("⚡ Consumo Total", f"{total_kwh:,.0f} kWh", help="Soma do consumo de energia ativa medido (kWh).")
+    with k3.container(border=True): st.metric("📊 Custo Real Médio", f"R$ {preco_medio:.2f} / kWh", help="Custo efetivo por unidade de energia (Total Pago / Consumo Total). Inclui impostos e taxas.")
+    with k4.container(border=True): st.metric("📅 Faturas Analisadas", qtd_faturas, help="Quantidade de faturas encontradas com os filtros atuais.")
 
     st.markdown(" ")
 
-    # Gráficos
-    with st.container(border=True):
-        st.subheader("📉 Fluxo Financeiro")
-        st.caption("Evolução dos pagamentos e identificação de maiores gastos.")
+    # Navegação por Abas para melhor organização visual
+    tab_fin, tab_tax, tab_cons, tab_ilum = st.tabs([
+        "📉 Fluxo Financeiro",
+        "⚖️ Taxômetro",
+        "⚡ Eficiência & Consumo",
+        "🔦 Iluminação Pública"
+    ])
+
+    with tab_fin:
         render_financial_flow(df_fin_view)
 
-    st.markdown(" ")
-    with st.container(border=True):
-        st.subheader("⚖️ Taxômetro (Raio-X)")
-        st.caption("Quanto da sua conta é Energia vs. Impostos/Taxas.")
+    with tab_tax:
         render_taxometer(df_fin_view)
 
-    st.markdown(" ")
-    with st.container(border=True):
-        st.subheader("⚡ Eficiência Energética")
-        st.caption("Análise de consumo físico (kWh) e geração solar (se houver).")
+    with tab_cons:
         render_consumption_dashboard(df_med_view, df_fin_view)
 
-    st.markdown(" ")
-    with st.container(border=True):
-        st.subheader("🔦 Auditoria de Iluminação Pública")
-        st.caption("Verificação automática das alíquotas cobradas vs. Lei Municipal.")
+    with tab_ilum:
         render_public_lighting(df_fin_view, df_med_view)
 
     # Download Button
