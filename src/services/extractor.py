@@ -166,7 +166,7 @@ def extract_measurement(full_text):
 
         if is_capturing:
             if (
-                "MÊS/ANO" in line_upper
+                "MES_ANO" in line_upper
                 or "HISTÓRICO" in line_upper
                 or "NOTIFICAÇÃO" in line_upper
             ):
@@ -202,7 +202,7 @@ def extract_invoice_data(file_path, password=None):
     }
 
     IGNORED_TERMS = [
-        "MÊS/ANO",
+        "MES_ANO",
         "COMSUMO",
         "CONSUMO",
         "TIPOS DE FATURAMENTO",
@@ -354,7 +354,7 @@ def extract_data_from_pdf(file_path, password=None):
     if items:
         df_fin = pd.DataFrame(items)
         # Adiciona coluna Referência em todas as linhas
-        df_fin["Referência"] = reference
+        df_fin["mes_referencia"] = reference
         df_fin["Nº do Cliente"] = client_id
 
         # Converte valores numéricos de string para float
@@ -385,7 +385,7 @@ def extract_data_from_pdf(file_path, password=None):
     if measurements:
         df_med = pd.DataFrame(measurements)
         # Adiciona coluna Referência em todas as linhas
-        df_med["Referência"] = reference
+        df_med["mes_referencia"] = reference
         df_med["Nº do Cliente"] = client_id
 
         # Converte valores numéricos de string para float

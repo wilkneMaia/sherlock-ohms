@@ -13,6 +13,9 @@ from views.help import render_help_tab
 st.set_page_config(page_title="Sherlock Ohms", page_icon="🕵️‍♂️", layout="wide")
 st.markdown("<style>.main-header {font-size: 2.5rem; font-weight: 700; color: #4285f4;}</style>", unsafe_allow_html=True)
 
+# Carrega dados antes da sidebar para permitir verificação de duplicidade
+df_faturas, df_medicao = load_all_data()
+
 # --- SIDEBAR (Upload) ---
 with st.sidebar:
     current_dir = Path(__file__).parent
@@ -44,16 +47,30 @@ with st.sidebar:
 
             df_fin, df_med = extract_data_from_pdf(temp_path, password)
             if not df_fin.empty:
-                save_data(df_fin, df_med)
-                st.success("Salvo!")
-                st.session_state.uploader_key += 1
-                st.rerun()
+                # Verifica duplicidade antes de salvar
+                new_ref = df_fin.iloc[0]["mes_referencia"]
+                is_duplicate = False
+
+                if not df_faturas.empty:
+                    # Verifica nas colunas possíveis (compatibilidade com dados antigos)
+                    for col in ["mes_referencia", "Referência", "referencia"]:
+                        if col in df_faturas.columns:
+                            if new_ref in df_faturas[col].astype(str).values:
+                                is_duplicate = True
+                                break
+
+                if is_duplicate:
+                    st.warning(f"⚠️ A fatura de **{new_ref}** já foi importada anteriormente. O sistema evitou a duplicação.")
+                else:
+                    save_data(df_fin, df_med)
+                    st.success("Salvo!")
+                    st.session_state.uploader_key += 1
+                    st.rerun()
             else:
                 st.error("Erro na leitura.")
 
 # --- MAIN ---
 st.markdown('<div class="main-header">Painel de Investigação</div>', unsafe_allow_html=True)
-df_faturas, df_medicao = load_all_data()
 
 if df_faturas.empty:
     st.info("👋 Bem-vindo! Comece importando uma fatura no menu lateral.")
