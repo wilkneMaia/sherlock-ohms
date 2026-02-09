@@ -151,17 +151,17 @@ def render_taxometer(df_fin_view):
 
     # 1. KPI Cards
     k1, k2, k3 = st.columns(3)
-    k1.metric("Valor Total da Fatura", f"R$ {total_custo:,.2f}")
+    k1.metric("Valor Total da Fatura", f"R$ {total_custo:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     k2.metric(
         "Energia Real Consumida",
-        f"R$ {val_liquido:,.2f}",
+        f"R$ {val_liquido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
         delta="O que você usou",
         delta_color="normal",
     )
     k3.metric(
         "Total de Encargos/Taxas",
-        f"R$ {total_tributos:,.2f}",
-        delta=f"-{pct_tributos:.1f}% da conta",
+        f"R$ {total_tributos:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+        delta=f"-{pct_tributos:.1f}% da conta".replace(".", ","),
         delta_color="inverse",
     )
 
@@ -191,7 +191,7 @@ def render_taxometer(df_fin_view):
                     "🚩 Extras": "#F1C40F",
                 },
             )
-            fig_tree.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=300)
+            fig_tree.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=300, separators=",.")
             # Melhora o texto dentro dos quadrados
             fig_tree.update_traces(textinfo="label+value+percent entry")
             st.plotly_chart(fig_tree, width="stretch")
@@ -232,6 +232,7 @@ def render_taxometer(df_fin_view):
                     t=0, b=0, l=0, r=50
                 ),  # Aumenta margem direita para evitar corte
                 showlegend=False,
+                separators=",."
             )
             fig_bar.update_traces(textposition="outside", cliponaxis=False)
             st.plotly_chart(fig_bar, width="stretch")
@@ -256,8 +257,8 @@ def render_taxometer(df_fin_view):
         # Insight de Proporção (Didático)
         st.info(
             f"💡 **Para onde vai seu dinheiro?**\n\n"
-            f"Para cada **R$ 100,00** pagos nesta fatura, aproximadamente **R$ {pct_tributos:.2f}** "
-            f"são impostos e taxas. Apenas **R$ {100 - pct_tributos:.2f}** pagam efetivamente a energia consumida."
+            f"Para cada **R$ 100,00** pagos nesta fatura, aproximadamente **R$ {pct_tributos:,.2f}** ".replace(",", "X").replace(".", ",").replace("X", ".") +
+            f"são impostos e taxas. Apenas **R$ {100 - pct_tributos:,.2f}** pagam efetivamente a energia consumida.".replace(",", "X").replace(".", ",").replace("X", ".")
         )
 
     with c_i2:
@@ -266,7 +267,7 @@ def render_taxometer(df_fin_view):
             st.warning(
                 f"⚠️ **Impacto das Bandeiras:**\n\n"
                 f"As bandeiras tarifárias (Vermelha/Amarela/Escassez) encareceram sua conta em "
-                f"**R$ {total_extras:,.2f}** neste período. Isso representa custos de geração extra no país."
+                f"**R$ {total_extras:,.2f}** neste período. Isso representa custos de geração extra no país.".replace(",", "X").replace(".", ",").replace("X", ".")
             )
         else:
             st.success(

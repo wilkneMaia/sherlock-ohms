@@ -48,18 +48,18 @@ def render_financial_flow(df_fin_view):
     k1, k2, k3 = st.columns(3)
     k1.metric(
         "Total de Despesas",
-        f"R$ {total_despesas:,.2f}",
+        f"R$ {total_despesas:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
         delta="-Saídas",
         delta_color="inverse",
     )
     k2.metric(
         "Total de Economia/Créditos",
-        f"R$ {total_economia:,.2f}",
+        f"R$ {total_economia:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
         delta="+Entradas",
         delta_color="normal",
         help="Soma de todos os itens negativos da fatura (ex: Crédito de Energia Injetada, Devoluções, Descontos).",
     )
-    k3.metric("Saldo Final (A Pagar)", f"R$ {saldo_final:,.2f}")
+    k3.metric("Saldo Final (A Pagar)", f"R$ {saldo_final:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
     st.divider()
 
@@ -87,7 +87,7 @@ def render_financial_flow(df_fin_view):
         )
         fig_pie.update_traces(textinfo="percent+label")
         fig_pie.update_layout(
-            showlegend=False, margin=dict(t=0, b=0, l=0, r=0), height=300
+            showlegend=False, margin=dict(t=0, b=0, l=0, r=0), height=300, separators=",."
         )
         st.plotly_chart(fig_pie, width="stretch")
 
@@ -100,15 +100,15 @@ def render_financial_flow(df_fin_view):
 
         # Cria texto customizado com ICMS e PIS/COFINS
         def criar_texto_detalhado(row):
-            partes = [f"R$ {row['valor_total']:,.2f}"]
+            partes = [f"R$ {row['valor_total']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")]
             if "valor_icms" in df_fat.columns:
                 icms_val = row.get("valor_icms", 0) or 0
                 if icms_val != 0:
-                    partes.append(f"ICMS: {icms_val:,.2f}")
+                    partes.append(f"ICMS: {icms_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             if "pis_cofins" in df_fat.columns:
                 pis_val = row.get("pis_cofins", 0) or 0
                 if pis_val != 0:
-                    partes.append(f"PIS: {pis_val:,.2f}")
+                    partes.append(f"PIS: {pis_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             return " | ".join(partes) if len(partes) > 1 else partes[0]
 
         df_fat["Texto_Detalhado"] = df_fat.apply(criar_texto_detalhado, axis=1)
@@ -143,6 +143,7 @@ def render_financial_flow(df_fin_view):
             yaxis_title=None,
             height=400,
             margin=dict(t=0, b=0, l=0, r=0),
+            separators=",."
         )
         fig_rank.update_xaxes(
             visible=False
@@ -201,6 +202,7 @@ def render_financial_flow(df_fin_view):
             yaxis_title="Valor (R$)",
             margin=dict(l=0, r=0, t=10, b=0),
             legend=dict(orientation="h", y=1.1),
+            separators=",."
         )
         st.plotly_chart(fig_evolucao, width="stretch")
 
@@ -216,15 +218,15 @@ def render_financial_flow(df_fin_view):
         ultimo_val = df_evolucao.iloc[-1]["valor_total"]
         diff_media = ultimo_val - media_mensal
 
-        col_i1.metric("Média Mensal", f"R$ {media_mensal:,.2f}")
+        col_i1.metric("Média Mensal", f"R$ {media_mensal:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
         col_i2.metric(
-            "Pico de Gasto", f"R$ {max_val:,.2f}", f"{mes_max}", delta_color="inverse"
+            "Pico de Gasto", f"R$ {max_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), f"{mes_max}", delta_color="inverse"
         )
 
         status_media = "Acima da Média" if diff_media > 0 else "Abaixo da Média"
         col_i3.metric(
             f"Última Fatura ({df_evolucao.iloc[-1]['mes_referencia']})",
-            f"R$ {ultimo_val:,.2f}",
-            f"{status_media} (R$ {diff_media:,.2f})",
+            f"R$ {ultimo_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+            f"{status_media} (R$ {diff_media:,.2f})".replace(",", "X").replace(".", ",").replace("X", "."),
             delta_color="inverse",
         )

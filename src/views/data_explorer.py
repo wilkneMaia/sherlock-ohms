@@ -11,11 +11,14 @@ def render_data_explorer_tab(df_faturas, df_medicao):
         df_view = df_faturas.copy()
 
         # Garante numérico e renomeia para ficar bonito na tabela
-        df_view["valor_total"] = pd.to_numeric(df_view["valor_total"], errors='coerce').fillna(0)
+        cols_numeric = ["valor_total", "pis_cofins", "base_calculo_icms", "valor_icms", "quantidade"]
+        for col in cols_numeric:
+            if col in df_view.columns:
+                df_view[col] = pd.to_numeric(df_view[col], errors='coerce').fillna(0)
 
         c1, c2 = st.columns([1, 2])
         c1.metric("Registros", len(df_view))
-        c2.metric("Total", f"R$ {df_view['valor_total'].sum():,.2f}")
+        c2.metric("Total", f"R$ {df_view['valor_total'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
         # Mantemos o padrão snake_case, alterando apenas mes_referencia para mes_ano conforme solicitado
         df_view.rename(columns={
@@ -29,8 +32,17 @@ def render_data_explorer_tab(df_faturas, df_medicao):
         if min_val > 0: min_val = 0
         if max_val < 0: max_val = 0
 
+        # Configuração de formatação (Pt-BR)
+        format_dict = {
+            "valor_total": lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+            "pis_cofins": lambda x: f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+            "base_calculo_icms": lambda x: f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+            "valor_icms": lambda x: f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+            "quantidade": lambda x: f"{x:,.0f}".replace(",", ".")
+        }
+
         styler = (
-            df_view.style.format({"valor_total": "R$ {:,.2f}"})
+            df_view.style.format({k: v for k, v in format_dict.items() if k in df_view.columns})
             .bar(subset=["valor_total"], align=0, vmin=min_val, vmax=max_val, color=["#2ECC71", "#EF553B"])
         )
 
@@ -42,7 +54,7 @@ def render_data_explorer_tab(df_faturas, df_medicao):
         c1, c2 = st.columns([1, 2])
         c1.metric("Leituras", len(df_view))
         if "consumo_kwh" in df_view.columns:
-            c2.metric("Consumo Total", f"{df_view['consumo_kwh'].sum():,.0f} kWh")
+            c2.metric("Consumo Total", f"{df_view['consumo_kwh'].sum():,.0f}".replace(",", ".") + " kWh")
 
         df_view.rename(columns={
             "mes_referencia": "mes_ano"

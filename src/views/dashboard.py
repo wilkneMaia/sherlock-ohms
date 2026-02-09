@@ -47,9 +47,9 @@ def render_dashboard_tab(df_faturas, df_medicao):
     qtd_faturas = df_fin_view["mes_referencia"].nunique()
 
     k1, k2, k3, k4 = st.columns(4)
-    with k1.container(border=True): st.metric("💸 Total Pago", f"R$ {total_gasto:,.2f}", help="Soma do valor total pago em todas as faturas do período selecionado.")
-    with k2.container(border=True): st.metric("⚡ Consumo Total", f"{total_kwh:,.0f} kWh", help="Soma do consumo de energia ativa medido (kWh).")
-    with k3.container(border=True): st.metric("📊 Custo Real Médio", f"R$ {preco_medio:.2f} / kWh", help="Custo efetivo por unidade de energia (Total Pago / Consumo Total). Inclui impostos e taxas.")
+    with k1.container(border=True): st.metric("💸 Total Pago", f"R$ {total_gasto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), help="Soma do valor total pago em todas as faturas do período selecionado.")
+    with k2.container(border=True): st.metric("⚡ Consumo Total", f"{total_kwh:,.0f}".replace(",", ".") + " kWh", help="Soma do consumo de energia ativa medido (kWh).")
+    with k3.container(border=True): st.metric("📊 Custo Real Médio", f"R$ {preco_medio:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") + " / kWh", help="Custo efetivo por unidade de energia (Total Pago / Consumo Total). Inclui impostos e taxas.")
     with k4.container(border=True): st.metric("📅 Faturas Analisadas", qtd_faturas, help="Quantidade de faturas encontradas com os filtros atuais.")
 
     st.markdown(" ")
