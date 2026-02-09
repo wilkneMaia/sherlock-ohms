@@ -16,6 +16,43 @@ st.markdown("<style>.main-header {font-size: 2.5rem; font-weight: 700; color: #4
 # Carrega dados antes da sidebar para permitir verificação de duplicidade
 df_faturas, df_medicao = load_all_data()
 
+# --- PADRONIZAÇÃO DE COLUNAS (Compatibilidade com dados antigos) ---
+def normalize_df_columns(df, mapping):
+    if df.empty: return df
+    # Normaliza nomes atuais para facilitar o match (remove espaços extras)
+    df.columns = [c.strip() for c in df.columns]
+    return df.rename(columns=mapping)
+
+# Mapeamento para o padrão oficial (snake_case)
+map_cols = {
+    "Itens de Fatura": "descricao",
+    "Unid.": "unidade",
+    "Quant.": "quantidade",
+    "Preço unit (R$) com tributos": "preco_unitario",
+    "Valor (R$)": "valor_total",
+    "PIS/COFINS": "pis_cofins",
+    "Base Calc ICMS (R$)": "base_calculo_icms",
+    "Alíquota ICMS": "aliquota_icms",
+    "ICMS": "valor_icms",
+    "Tarifa unit (R$)": "tarifa_unitaria",
+    "Referência": "mes_referencia",
+    "Nº do Cliente": "numero_cliente",
+    # Medição
+    "N° Medidor": "numero_medidor",
+    "P.Horário/Segmento": "segmento",
+    "Data Leitura (Anterior)": "data_leitura_anterior",
+    "Leitura (Anterior)": "leitura_anterior",
+    "Data Leitura (Atual)": "data_leitura_atual",
+    "Leitura (Atual)": "leitura_atual",
+    "Fator Multiplicador": "fator_multiplicador",
+    "Consumo kWh": "consumo_kwh",
+    "N° Dias": "numero_dias"
+}
+
+df_faturas = normalize_df_columns(df_faturas, map_cols)
+df_medicao = normalize_df_columns(df_medicao, map_cols)
+# -------------------------------------------------------------------
+
 # --- SIDEBAR (Upload) ---
 with st.sidebar:
     current_dir = Path(__file__).parent

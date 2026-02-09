@@ -12,29 +12,26 @@ def render_data_explorer_tab(df_faturas, df_medicao):
 
         # Garante numérico e renomeia para ficar bonito na tabela
         df_view["valor_total"] = pd.to_numeric(df_view["valor_total"], errors='coerce').fillna(0)
-        df_view.rename(columns={"valor_total": "Valor"}, inplace=True)
 
         c1, c2 = st.columns([1, 2])
         c1.metric("Registros", len(df_view))
-        c2.metric("Total", f"R$ {df_view['Valor'].sum():,.2f}")
+        c2.metric("Total", f"R$ {df_view['valor_total'].sum():,.2f}")
 
-        # Renomeamos colunas diretamente para evitar conflito entre column_config e Styler
+        # Mantemos o padrão snake_case, alterando apenas mes_referencia para mes_ano conforme solicitado
         df_view.rename(columns={
-            "mes_referencia": "Mês/Ano",
-            "descricao": "Descrição",
-            "numero_cliente": "Instalação"
+            "mes_referencia": "mes_ano"
         }, inplace=True)
 
         # Definimos limites explícitos para garantir que o gráfico de barras apareça
         # e o zero fique corretamente posicionado (mesmo se só houver positivos ou negativos)
-        min_val = df_view["Valor"].min()
-        max_val = df_view["Valor"].max()
+        min_val = df_view["valor_total"].min()
+        max_val = df_view["valor_total"].max()
         if min_val > 0: min_val = 0
         if max_val < 0: max_val = 0
 
         styler = (
-            df_view.style.format({"Valor": "R$ {:,.2f}"})
-            .bar(subset=["Valor"], align=0, vmin=min_val, vmax=max_val, color=["#2ECC71", "#EF553B"])
+            df_view.style.format({"valor_total": "R$ {:,.2f}"})
+            .bar(subset=["valor_total"], align=0, vmin=min_val, vmax=max_val, color=["#2ECC71", "#EF553B"])
         )
 
         st.dataframe(styler, width="stretch", height=500, hide_index=True)
@@ -47,9 +44,13 @@ def render_data_explorer_tab(df_faturas, df_medicao):
         if "consumo_kwh" in df_view.columns:
             c2.metric("Consumo Total", f"{df_view['consumo_kwh'].sum():,.0f} kWh")
 
+        df_view.rename(columns={
+            "mes_referencia": "mes_ano"
+        }, inplace=True)
+
         column_config = {
-            "mes_referencia": st.column_config.TextColumn("Mês/Ano", width="small"),
-            "consumo_kwh": st.column_config.NumberColumn("Consumo", format="%d kWh"),
+            "mes_ano": st.column_config.TextColumn("mes_ano", width="small"),
+            "consumo_kwh": st.column_config.NumberColumn("consumo_kwh", format="%d kWh"),
         }
         st.dataframe(df_view, width="stretch", column_config=column_config, height=500, hide_index=True)
         filename = "medicao.csv"

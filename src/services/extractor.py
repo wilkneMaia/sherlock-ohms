@@ -98,14 +98,14 @@ def process_values(values_str, item_type):
     tokens = [normalize_negative_value(token) for token in tokens]
 
     columns = {
-        "Quant.": "",
-        "Preço unit (R$) com tributos": "",
-        "Valor (R$)": "",
-        "PIS/COFINS": "",
-        "Base Calc ICMS (R$)": "",
-        "Alíquota ICMS": "",
-        "ICMS": "",
-        "Tarifa unit (R$)": "",
+        "quantidade": "",
+        "preco_unitario": "",
+        "valor_total": "",
+        "pis_cofins": "",
+        "base_calculo_icms": "",
+        "aliquota_icms": "",
+        "valor_icms": "",
+        "tarifa_unitaria": "",
     }
 
     if not tokens:
@@ -113,14 +113,14 @@ def process_values(values_str, item_type):
 
     if item_type == "standard":
         fields = [
-            "Quant.",
-            "Preço unit (R$) com tributos",
-            "Valor (R$)",
-            "PIS/COFINS",
-            "Base Calc ICMS (R$)",
-            "Alíquota ICMS",
-            "ICMS",
-            "Tarifa unit (R$)",
+            "quantidade",
+            "preco_unitario",
+            "valor_total",
+            "pis_cofins",
+            "base_calculo_icms",
+            "aliquota_icms",
+            "valor_icms",
+            "tarifa_unitaria",
         ]
 
         # Tenta encaixar os tokens nos campos
@@ -128,17 +128,17 @@ def process_values(values_str, item_type):
             for i, field in enumerate(fields):
                 columns[field] = tokens[i]
         elif len(tokens) >= 3:
-            columns["Quant."] = tokens[0]
-            columns["Preço unit (R$) com tributos"] = tokens[1]
-            columns["Valor (R$)"] = tokens[2]
+            columns["quantidade"] = tokens[0]
+            columns["preco_unitario"] = tokens[1]
+            columns["valor_total"] = tokens[2]
             # Preenche o restante se houver
             for i, val in enumerate(tokens[3:]):
                 if i < len(fields[3:]):
                     columns[fields[3 + i]] = val
 
     elif item_type == "simple":
-        columns["Valor (R$)"] = tokens[0]
-        fields = ["PIS/COFINS", "Base Calc ICMS (R$)", "Alíquota ICMS", "ICMS"]
+        columns["valor_total"] = tokens[0]
+        fields = ["pis_cofins", "base_calculo_icms", "aliquota_icms", "valor_icms"]
         for i, val in enumerate(tokens[1:]):
             if i < len(fields):
                 columns[fields[i]] = val
@@ -176,15 +176,15 @@ def extract_measurement(full_text):
             if match:
                 measurement_items.append(
                     {
-                        "N° Medidor": match.group(1),
-                        "P.Horário/Segmento": match.group(2),
-                        "Data Leitura (Anterior)": match.group(3),
-                        "Leitura (Anterior)": match.group(4),
-                        "Data Leitura (Atual)": match.group(5),
-                        "Leitura (Atual)": match.group(6),
-                        "Fator Multiplicador": match.group(7),
-                        "Consumo kWh": match.group(8),
-                        "N° Dias": match.group(9),
+                        "numero_medidor": match.group(1),
+                        "segmento": match.group(2),
+                        "data_leitura_anterior": match.group(3),
+                        "leitura_anterior": match.group(4),
+                        "data_leitura_atual": match.group(5),
+                        "leitura_atual": match.group(6),
+                        "fator_multiplicador": match.group(7),
+                        "consumo_kwh": match.group(8),
+                        "numero_dias": match.group(9),
                     }
                 )
     return measurement_items
@@ -311,8 +311,8 @@ def extract_invoice_data(file_path, password=None):
 
                         value_cols = process_values(info["values_str"], info["type"])
                         item = {
-                            "Itens de Fatura": info["description"],
-                            "Unid.": info["unit"],
+                            "descricao": info["description"],
+                            "unidade": info["unit"],
                             **value_cols,
                         }
                         temp_items.append(item)
@@ -355,18 +355,18 @@ def extract_data_from_pdf(file_path, password=None):
         df_fin = pd.DataFrame(items)
         # Adiciona coluna Referência em todas as linhas
         df_fin["mes_referencia"] = reference
-        df_fin["Nº do Cliente"] = client_id
+        df_fin["numero_cliente"] = client_id
 
         # Converte valores numéricos de string para float
         numeric_cols = [
-            "Quant.",
-            "Preço unit (R$) com tributos",
-            "Valor (R$)",
-            "PIS/COFINS",
-            "Base Calc ICMS (R$)",
-            "Alíquota ICMS",
-            "ICMS",
-            "Tarifa unit (R$)",
+            "quantidade",
+            "preco_unitario",
+            "valor_total",
+            "pis_cofins",
+            "base_calculo_icms",
+            "aliquota_icms",
+            "valor_icms",
+            "tarifa_unitaria",
         ]
 
         for col in numeric_cols:
@@ -386,15 +386,15 @@ def extract_data_from_pdf(file_path, password=None):
         df_med = pd.DataFrame(measurements)
         # Adiciona coluna Referência em todas as linhas
         df_med["mes_referencia"] = reference
-        df_med["Nº do Cliente"] = client_id
+        df_med["numero_cliente"] = client_id
 
         # Converte valores numéricos de string para float
         numeric_cols_med = [
-            "Leitura (Anterior)",
-            "Leitura (Atual)",
-            "Fator Multiplicador",
-            "Consumo kWh",
-            "N° Dias",
+            "leitura_anterior",
+            "leitura_atual",
+            "fator_multiplicador",
+            "consumo_kwh",
+            "numero_dias",
         ]
 
         for col in numeric_cols_med:
