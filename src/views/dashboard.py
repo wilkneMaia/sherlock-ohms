@@ -5,61 +5,6 @@ from components.consumption_dashboard import render_consumption_dashboard
 from components.public_lighting import render_public_lighting
 
 def render_dashboard_tab(df_faturas, df_medicao):
-    # Normalização de colunas para corrigir erros de importação (acentos/espaços)
-    def _normalizar_cols(df):
-        if df is None or df.empty: return df
-        new_cols = []
-        for col in df.columns:
-            c = str(col).lower().strip()
-            c = c.replace('á', 'a').replace('ã', 'a').replace('â', 'a')
-            c = c.replace('é', 'e').replace('ê', 'e')
-            c = c.replace('í', 'i').replace('ó', 'o').replace('õ', 'o')
-            c = c.replace('ú', 'u').replace('ç', 'c')
-            new_cols.append(c.replace(" ", "_"))
-        df.columns = new_cols
-        return df
-
-    df_faturas = _normalizar_cols(df_faturas)
-    df_medicao = _normalizar_cols(df_medicao)
-
-    # Garante que a coluna de referência seja encontrada mesmo se o nome variar na extração
-    if "referencia" in df_faturas.columns:
-        df_faturas.rename(columns={"referencia": "mes_referencia"}, inplace=True)
-    if "referencia" in df_medicao.columns:
-        df_medicao.rename(columns={"referencia": "mes_referencia"}, inplace=True)
-
-    # Normaliza coluna de valor financeiro para o padrão esperado pelo dashboard
-    if "valor_(r$)" in df_faturas.columns:
-        df_faturas.rename(columns={"valor_(r$)": "valor_total"}, inplace=True)
-
-    # Normaliza coluna de descrição dos itens (ex: Itens de Fatura -> descricao)
-    if "itens_de_fatura" in df_faturas.columns:
-        df_faturas.rename(columns={"itens_de_fatura": "descricao"}, inplace=True)
-
-    # Normaliza colunas de impostos para o Taxômetro
-    if "icms" in df_faturas.columns:
-        df_faturas.rename(columns={"icms": "valor_icms"}, inplace=True)
-    if "pis/cofins" in df_faturas.columns:
-        df_faturas.rename(columns={"pis/cofins": "pis_cofins"}, inplace=True)
-
-    # Normaliza colunas da medição para evitar erros no dashboard de consumo
-    if "consumo" in df_medicao.columns:
-        df_medicao.rename(columns={"consumo": "consumo_kwh"}, inplace=True)
-
-    # Normaliza coluna de segmento para identificar Injeção Solar (P.Horário/Segmento -> segmento)
-    for col in ["p.horario/segmento", "p_horario_segmento", "p.horario_segmento"]:
-        if col in df_medicao.columns:
-            df_medicao.rename(columns={col: "segmento"}, inplace=True)
-            break
-
-    # Garante que a coluna 'numero_dias' exista (usada para média diária)
-    for col in ["nº_dias", "n_dias", "dias", "no_dias"]:
-        if col in df_medicao.columns:
-            df_medicao.rename(columns={col: "numero_dias"}, inplace=True)
-            break
-    if "numero_dias" not in df_medicao.columns and not df_medicao.empty:
-        df_medicao["numero_dias"] = 30
-
     if "mes_referencia" not in df_faturas.columns:
         st.error(f"Erro de Dados: A coluna 'mes_referencia' não foi encontrada. Colunas disponíveis: {list(df_faturas.columns)}")
         st.stop()

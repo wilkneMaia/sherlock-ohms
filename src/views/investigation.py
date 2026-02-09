@@ -1,13 +1,5 @@
 import streamlit as st
 from services.agent import get_agent, get_available_models
-import sys
-import subprocess
-
-# Garante que a biblioteca 'tabulate' esteja instalada para formatação de tabelas pelo agente
-try:
-    import tabulate
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "tabulate"])
 
 def render_investigation_tab(df_faturas):
     # --- 1. CONFIGURAÇÃO (API Key e Modelo) ---

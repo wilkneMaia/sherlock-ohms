@@ -1,5 +1,6 @@
 from pathlib import Path
 import streamlit as st
+import os
 from database import load_all_data, save_data
 
 # Importa as views modularizadas
@@ -15,43 +16,6 @@ st.markdown("<style>.main-header {font-size: 2.5rem; font-weight: 700; color: #4
 
 # Carrega dados antes da sidebar para permitir verificação de duplicidade
 df_faturas, df_medicao = load_all_data()
-
-# --- PADRONIZAÇÃO DE COLUNAS (Compatibilidade com dados antigos) ---
-def normalize_df_columns(df, mapping):
-    if df.empty: return df
-    # Normaliza nomes atuais para facilitar o match (remove espaços extras)
-    df.columns = [c.strip() for c in df.columns]
-    return df.rename(columns=mapping)
-
-# Mapeamento para o padrão oficial (snake_case)
-map_cols = {
-    "Itens de Fatura": "descricao",
-    "Unid.": "unidade",
-    "Quant.": "quantidade",
-    "Preço unit (R$) com tributos": "preco_unitario",
-    "Valor (R$)": "valor_total",
-    "PIS/COFINS": "pis_cofins",
-    "Base Calc ICMS (R$)": "base_calculo_icms",
-    "Alíquota ICMS": "aliquota_icms",
-    "ICMS": "valor_icms",
-    "Tarifa unit (R$)": "tarifa_unitaria",
-    "Referência": "mes_referencia",
-    "Nº do Cliente": "numero_cliente",
-    # Medição
-    "N° Medidor": "numero_medidor",
-    "P.Horário/Segmento": "segmento",
-    "Data Leitura (Anterior)": "data_leitura_anterior",
-    "Leitura (Anterior)": "leitura_anterior",
-    "Data Leitura (Atual)": "data_leitura_atual",
-    "Leitura (Atual)": "leitura_atual",
-    "Fator Multiplicador": "fator_multiplicador",
-    "Consumo kWh": "consumo_kwh",
-    "N° Dias": "numero_dias"
-}
-
-df_faturas = normalize_df_columns(df_faturas, map_cols)
-df_medicao = normalize_df_columns(df_medicao, map_cols)
-# -------------------------------------------------------------------
 
 # --- SIDEBAR (Upload) ---
 with st.sidebar:
@@ -82,29 +46,34 @@ with st.sidebar:
             temp_path = f"data/temp_{uploaded_file.name}"
             with open(temp_path, "wb") as f: f.write(uploaded_file.getbuffer())
 
-            df_fin, df_med = extract_data_from_pdf(temp_path, password)
-            if not df_fin.empty:
-                # Verifica duplicidade antes de salvar
-                new_ref = df_fin.iloc[0]["mes_referencia"]
-                is_duplicate = False
+            try:
+                df_fin, df_med = extract_data_from_pdf(temp_path, password)
+                if not df_fin.empty:
+                    # Verifica duplicidade antes de salvar
+                    new_ref = df_fin.iloc[0]["mes_referencia"]
+                    is_duplicate = False
 
-                if not df_faturas.empty:
-                    # Verifica nas colunas possíveis (compatibilidade com dados antigos)
-                    for col in ["mes_referencia", "Referência", "referencia"]:
-                        if col in df_faturas.columns:
-                            if new_ref in df_faturas[col].astype(str).values:
-                                is_duplicate = True
-                                break
+                    if not df_faturas.empty:
+                        # Verifica nas colunas possíveis (compatibilidade com dados antigos)
+                        for col in ["mes_referencia", "Referência", "referencia"]:
+                            if col in df_faturas.columns:
+                                if new_ref in df_faturas[col].astype(str).values:
+                                    is_duplicate = True
+                                    break
 
-                if is_duplicate:
-                    st.warning(f"⚠️ A fatura de **{new_ref}** já foi importada anteriormente. O sistema evitou a duplicação.")
+                    if is_duplicate:
+                        st.warning(f"⚠️ A fatura de **{new_ref}** já foi importada anteriormente. O sistema evitou a duplicação.")
+                    else:
+                        save_data(df_fin, df_med)
+                        st.success("Salvo!")
+                        st.session_state.uploader_key += 1
+                        st.rerun()
                 else:
-                    save_data(df_fin, df_med)
-                    st.success("Salvo!")
-                    st.session_state.uploader_key += 1
-                    st.rerun()
-            else:
-                st.error("Erro na leitura.")
+                    st.error("Erro na leitura.")
+            finally:
+                # Limpeza do arquivo temporário
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
 
 # --- MAIN ---
 st.markdown('<div class="main-header">Painel de Investigação</div>', unsafe_allow_html=True)

@@ -332,6 +332,36 @@ def extract_invoice_data(file_path, password=None):
 # --- FUNÇÃO DE INTERFACE (Compatível com a Nova Arquitetura) ---
 
 
+def standardize_frame(df, mapping):
+    """
+    Padroniza nomes de colunas e remove caracteres especiais.
+    """
+    if df.empty:
+        return df
+
+    # 1. Normaliza nomes atuais (remove espaços extras e acentos básicos)
+    new_cols = []
+    for col in df.columns:
+        c = str(col).strip()
+        # Mapeamento reverso simples para garantir consistência se vier da extração bruta
+        new_cols.append(c)
+    df.columns = new_cols
+
+    # 2. Renomeia conforme mapa oficial
+    df = df.rename(columns=mapping)
+
+    # 3. Garante snake_case para colunas que não estavam no mapa
+    final_cols = []
+    for col in df.columns:
+        c = str(col).lower().strip()
+        c = c.replace('á', 'a').replace('ã', 'a').replace('â', 'a')
+        c = c.replace('é', 'e').replace('ê', 'e')
+        c = c.replace('í', 'i').replace('ó', 'o').replace('õ', 'o')
+        c = c.replace('ú', 'u').replace('ç', 'c')
+        final_cols.append(c.replace(" ", "_").replace("/", "_").replace(".", ""))
+    df.columns = final_cols
+    return df
+
 def extract_data_from_pdf(file_path, password=None):
     """
     Extrai dados do PDF e retorna dois DataFrames:
@@ -349,6 +379,30 @@ def extract_data_from_pdf(file_path, password=None):
     reference = raw_data.get("reference", "Not Found")
     client_id = raw_data.get("client_id", "Desconhecido")
 
+    # Mapeamento Oficial de Colunas
+    map_cols = {
+        "Itens de Fatura": "descricao",
+        "Unid.": "unidade",
+        "Quant.": "quantidade",
+        "Preço unit (R$) com tributos": "preco_unitario",
+        "Valor (R$)": "valor_total",
+        "PIS/COFINS": "pis_cofins",
+        "Base Calc ICMS (R$)": "base_calculo_icms",
+        "Alíquota ICMS": "aliquota_icms",
+        "ICMS": "valor_icms",
+        "Tarifa unit (R$)": "tarifa_unitaria",
+        # Medição
+        "N° Medidor": "numero_medidor",
+        "P.Horário/Segmento": "segmento",
+        "Data Leitura (Anterior)": "data_leitura_anterior",
+        "Leitura (Anterior)": "leitura_anterior",
+        "Data Leitura (Atual)": "data_leitura_atual",
+        "Leitura (Atual)": "leitura_atual",
+        "Fator Multiplicador": "fator_multiplicador",
+        "Consumo kWh": "consumo_kwh",
+        "N° Dias": "numero_dias"
+    }
+
     # 2. Converte items financeiros em DataFrame
     items = raw_data.get("items", [])
     if items:
@@ -356,6 +410,9 @@ def extract_data_from_pdf(file_path, password=None):
         # Adiciona coluna Referência em todas as linhas
         df_fin["mes_referencia"] = reference
         df_fin["numero_cliente"] = client_id
+
+        # Padroniza colunas
+        df_fin = standardize_frame(df_fin, map_cols)
 
         # Converte valores numéricos de string para float
         numeric_cols = [
@@ -388,6 +445,9 @@ def extract_data_from_pdf(file_path, password=None):
         df_med["mes_referencia"] = reference
         df_med["numero_cliente"] = client_id
 
+        # Padroniza colunas
+        df_med = standardize_frame(df_med, map_cols)
+
         # Converte valores numéricos de string para float
         numeric_cols_med = [
             "leitura_anterior",
@@ -407,5 +467,11 @@ def extract_data_from_pdf(file_path, password=None):
                 df_med[col] = pd.to_numeric(df_med[col], errors="coerce")
     else:
         df_med = pd.DataFrame()
+
+    # Garante colunas essenciais mesmo se vazias
+    if not df_med.empty and "numero_dias" not in df_med.columns:
+        df_med["numero_dias"] = 30
+    if not df_med.empty and "segmento" not in df_med.columns:
+        df_med["segmento"] = "Convencional"
 
     return df_fin, df_med
