@@ -45,7 +45,8 @@ with st.sidebar:
 
     if uploaded_file and st.button("🔍 Processar", type="primary"):
         with st.spinner("Lendo arquivo..."):
-            temp_path = f"data/temp_{uploaded_file.name}"
+            safe_name = Path(uploaded_file.name).name
+            temp_path = f"data/temp_{safe_name}"
             with open(temp_path, "wb") as f: f.write(uploaded_file.getbuffer())
 
             try:

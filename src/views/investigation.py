@@ -1,5 +1,15 @@
 import streamlit as st
+
 from services.agent import get_agent, get_available_models
+
+# --- Quick Actions (Sugestões de perguntas) ---
+QUICK_ACTIONS = [
+    "Qual o mês mais caro?",
+    "Mostre a evolução do consumo",
+    "Quais os maiores itens da fatura?",
+    "Compare os últimos 3 meses",
+]
+
 
 def render_investigation_tab(df_faturas):
     # --- 1. CONFIGURAÇÃO (API Key e Modelo) ---
@@ -8,6 +18,7 @@ def render_investigation_tab(df_faturas):
     if "api_key" not in st.session_state: st.session_state.api_key = ""
     if "selected_model" not in st.session_state: st.session_state.selected_model = "gemini-1.5-flash"
     if "messages" not in st.session_state: st.session_state.messages = []
+    if "quick_action_prompt" not in st.session_state: st.session_state.quick_action_prompt = None
 
     config_expanded = not bool(st.session_state.api_key)
 
@@ -43,6 +54,7 @@ def render_investigation_tab(df_faturas):
         c1, c2 = st.columns(2)
         if c1.button("🗑️ Limpar", width="stretch"):
             st.session_state.messages = []
+            st.session_state.quick_action_prompt = None
             st.rerun()
 
         chat_text = "\n\n".join([f"**{m['role'].upper()}**: {m['content']}" for m in st.session_state.messages])
@@ -62,22 +74,36 @@ def render_investigation_tab(df_faturas):
             with st.chat_message(msg["role"], avatar=avatar):
                 st.markdown(msg["content"])
 
-    # Mensagem de boas-vindas (Placeholder para ser removido ao iniciar)
+    # Mensagem de boas-vindas + Quick Actions
     welcome_ph = st.empty()
     if not st.session_state.messages:
-        with welcome_ph:
+        with welcome_ph.container():
             st.markdown(
                 """
-                <div style='text-align: center; color: #888; margin-top: 40px; margin-bottom: 40px;'>
+                <div style='text-align: center; color: #888; margin-top: 40px; margin-bottom: 20px;'>
                     <h4>👋 Olá! Sou seu Detetive Financeiro.</h4>
-                    <p>Estou pronto para analisar suas faturas. Faça uma pergunta para começar a investigação!</p>
+                    <p>Estou pronto para analisar suas faturas. Escolha uma pergunta rápida ou digite a sua!</p>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
 
-    if prompt := st.chat_input("Pergunte sobre seus gastos..."):
-        welcome_ph.empty() # Limpa a mensagem de boas-vindas imediatamente
+            # Quick Action Buttons
+            cols = st.columns(len(QUICK_ACTIONS))
+            for i, action in enumerate(QUICK_ACTIONS):
+                with cols[i]:
+                    if st.button(action, key=f"qa_{i}", use_container_width=True):
+                        st.session_state.quick_action_prompt = action
+                        st.rerun()
+
+    # Determina o prompt (digitado ou quick action)
+    typed_prompt = st.chat_input("Pergunte sobre seus gastos...")
+    prompt = typed_prompt or st.session_state.quick_action_prompt
+
+    if prompt:
+        # Limpa o quick action após usar
+        st.session_state.quick_action_prompt = None
+        welcome_ph.empty()
         st.session_state.messages.append({"role": "user", "content": prompt})
 
         with chat_container:

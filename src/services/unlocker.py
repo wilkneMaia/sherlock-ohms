@@ -1,6 +1,9 @@
-import pikepdf
+import logging
 import os
-import streamlit as st
+
+import pikepdf
+
+logger = logging.getLogger(__name__)
 
 
 def unlock_pdf_file(uploaded_file, password=None):
@@ -43,7 +46,7 @@ def unlock_pdf_file(uploaded_file, password=None):
         return None
 
     except Exception as e:
-        print(f"❌ Erro ao desbloquear PDF: {e}")
+        logger.error("Erro ao desbloquear PDF: %s", e)
         return None
 
 
@@ -55,5 +58,5 @@ def check_is_encrypted(uploaded_file):
         return False  # Não tem senha
     except pikepdf.PasswordError:
         return True  # Tem senha
-    except:
+    except Exception:
         return False  # Erro de leitura, assume sem senha por enquanto

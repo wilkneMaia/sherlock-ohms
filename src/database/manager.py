@@ -1,7 +1,11 @@
-import pandas as pd
+import logging
 import os
-import streamlit as st
+
 import duckdb
+import pandas as pd
+import streamlit as st
+
+logger = logging.getLogger(__name__)
 
 # --- CONFIGURAÇÃO DE CAMINHOS ---
 # Ajusta para pegar a raiz do projeto corretamente baseada na localização deste arquivo
@@ -49,7 +53,7 @@ def _upsert_dataframe(df_new, file_path, keys=["mes_referencia"]):
         return True
 
     except Exception as e:
-        print(f"❌ Erro ao salvar parquet: {e}")
+        logger.error("Erro ao salvar parquet: %s", e)
         return False
 
 def save_data(df_financeiro, df_medicao):

@@ -1,5 +1,9 @@
-import streamlit as st
 import os
+
+import streamlit as st
+
+from database.manager import FILE_FATURAS, FILE_MEDICAO
+
 
 def render_help_tab():
     st.markdown("### ❓ Central de Ajuda & Manutenção")
@@ -19,7 +23,7 @@ def render_help_tab():
         with st.container(border=True):
             st.subheader("🛠️ Manutenção")
             if st.button("🗑️ Resetar Banco de Dados", type="primary", use_container_width=True):
-                if os.path.exists("data/database/faturas.parquet"): os.remove("data/database/faturas.parquet")
-                if os.path.exists("data/database/medicao.parquet"): os.remove("data/database/medicao.parquet")
+                if os.path.exists(FILE_FATURAS): os.remove(FILE_FATURAS)
+                if os.path.exists(FILE_MEDICAO): os.remove(FILE_MEDICAO)
                 st.toast("Banco limpo!", icon="🧹")
                 st.rerun()
