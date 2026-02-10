@@ -1,8 +1,10 @@
 import streamlit as st
-from components.financial_flow import render_financial_flow
-from components.taxometer import render_taxometer
+
 from components.consumption_dashboard import render_consumption_dashboard
+from components.financial_flow import render_financial_flow
 from components.public_lighting import render_public_lighting
+from components.taxometer import render_taxometer
+
 
 def render_dashboard_tab(df_faturas, df_medicao):
     if "mes_referencia" not in df_faturas.columns:
@@ -42,7 +44,12 @@ def render_dashboard_tab(df_faturas, df_medicao):
 
     # KPIs
     total_gasto = df_fin_view["valor_total"].sum()
-    total_kwh = df_med_view["consumo_kwh"].sum() if not df_med_view.empty and "consumo_kwh" in df_med_view.columns else 0
+    # Filtra apenas consumo (exclui injeção "INJ") para calcular consumo real
+    if not df_med_view.empty and "consumo_kwh" in df_med_view.columns:
+        df_consumo = df_med_view[~df_med_view["segmento"].str.contains("INJ", case=False, na=False)] if "segmento" in df_med_view.columns else df_med_view
+        total_kwh = df_consumo["consumo_kwh"].sum()
+    else:
+        total_kwh = 0
     preco_medio = (total_gasto / total_kwh) if total_kwh > 0 else 0
     qtd_faturas = df_fin_view["mes_referencia"].nunique()
 
