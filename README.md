@@ -138,7 +138,11 @@ uv run task test
 
 ---
 
-## 📄 Licença
+## � Agradecimentos
+
+Projeto desenvolvido com a colaboração das IAs **Google Gemini** e **Claude** (Anthropic). 🤝🤖
+
+## �📄 Licença
 
 Este projeto é distribuído sob a licença MIT. Sinta-se livre para usar, modificar e distribuir.
 
