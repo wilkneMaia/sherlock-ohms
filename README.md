@@ -1,3 +1,5 @@
+![Sherlock Ohms Logo](assets/sherlock_ohms.png)
+
 # 🕵️‍♂️ Sherlock Ohms
 
 > **Investigação Elementar de Energia** — Auditoria inteligente de faturas de energia elétrica (Enel-CE).
