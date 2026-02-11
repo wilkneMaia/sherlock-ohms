@@ -21,6 +21,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "kaleido>=1.2.0",
+    "playwright>=1.58.0",
     "pytest>=9.0.2",
     "ruff>=0.15.0",
     "taskipy>=1.14.1",
