@@ -14,6 +14,14 @@ DB_FOLDER = os.path.join(BASE_DIR, "data", "database")
 FILE_FATURAS = os.path.join(DB_FOLDER, "faturas.parquet")
 FILE_MEDICAO = os.path.join(DB_FOLDER, "medicao.parquet")
 
+
+def _get_invoice_keys(df):
+    """Retorna a chave lógica usada para identificar uma fatura."""
+    keys = ["mes_referencia"]
+    if "numero_cliente" in df.columns:
+        keys.append("numero_cliente")
+    return keys
+
 def init_db():
     """Garante que a pasta e os arquivos existam."""
     os.makedirs(DB_FOLDER, exist_ok=True)
@@ -24,7 +32,33 @@ def init_db():
     if not os.path.exists(FILE_MEDICAO):
         pd.DataFrame().to_parquet(FILE_MEDICAO)
 
-def _upsert_dataframe(df_new, file_path, keys=["mes_referencia"]):
+def invoice_already_imported(df_existing, df_new):
+    """
+    Verifica se a fatura já existe com a mesma identidade usada no upsert.
+
+    Se o DataFrame existente não possuir todas as colunas da chave da nova
+    fatura, não bloqueia a importação para evitar falsos positivos.
+    """
+    if df_existing.empty or df_new.empty:
+        return False
+
+    keys = _get_invoice_keys(df_new)
+
+    if any(key not in df_new.columns for key in keys):
+        return False
+
+    if any(key not in df_existing.columns for key in keys):
+        return False
+
+    new_invoice_keys = df_new[keys].drop_duplicates()
+    matches = df_existing.merge(new_invoice_keys, on=keys, how="inner")
+    return not matches.empty
+
+
+def _upsert_dataframe(df_new, file_path, keys=None):
+    if keys is None:
+        keys = ["mes_referencia"]
+
     if df_new.empty:
         return False
 
@@ -62,16 +96,12 @@ def save_data(df_financeiro, df_medicao):
     success_fin = True
     success_med = True
 
-    keys_fin = ["mes_referencia"]
-    if "numero_cliente" in df_financeiro.columns:
-        keys_fin.append("numero_cliente")
+    keys_fin = _get_invoice_keys(df_financeiro)
 
     if not df_financeiro.empty:
         success_fin = _upsert_dataframe(df_financeiro, FILE_FATURAS, keys=keys_fin)
 
-    keys_med = ["mes_referencia"]
-    if "numero_cliente" in df_medicao.columns:
-        keys_med.append("numero_cliente")
+    keys_med = _get_invoice_keys(df_medicao)
 
     if not df_medicao.empty:
         success_med = _upsert_dataframe(df_medicao, FILE_MEDICAO, keys=keys_med)

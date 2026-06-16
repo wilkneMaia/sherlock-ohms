@@ -3,7 +3,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from database import load_all_data, save_data
+from database import invoice_already_imported, load_all_data, save_data
 from services.extractor import extract_data_from_pdf
 
 # --- CONFIGURAÇÃO ---
@@ -52,17 +52,9 @@ with st.sidebar:
             try:
                 df_fin, df_med = extract_data_from_pdf(temp_path, password)
                 if not df_fin.empty:
-                    # Carrega dados atuais para verificar duplicidade
                     df_faturas, df_medicao = load_all_data()
                     new_ref = df_fin.iloc[0]["mes_referencia"]
-                    is_duplicate = False
-
-                    if not df_faturas.empty:
-                        for col in ["mes_referencia", "Referência", "referencia"]:
-                            if col in df_faturas.columns:
-                                if new_ref in df_faturas[col].astype(str).values:
-                                    is_duplicate = True
-                                    break
+                    is_duplicate = invoice_already_imported(df_faturas, df_fin)
 
                     if is_duplicate:
                         st.warning(f"⚠️ A fatura de **{new_ref}** já foi importada anteriormente. O sistema evitou a duplicação.")

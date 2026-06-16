@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import pandas as pd
 
-from database.manager import _upsert_dataframe
+from database.manager import _upsert_dataframe, invoice_already_imported
 
 
 class TestUpsertDataframe:
@@ -86,3 +86,46 @@ class TestUpsertDataframe:
         assert aaa_row.iloc[0]["valor_total"] == 999.0
         bbb_row = loaded[loaded["numero_cliente"] == "BBB"]
         assert bbb_row.iloc[0]["valor_total"] == 200.0
+
+
+class TestInvoiceAlreadyImported:
+    def test_detects_same_reference_and_client(self):
+        df_existing = pd.DataFrame({
+            "mes_referencia": ["05/2025", "05/2025"],
+            "numero_cliente": ["AAA", "BBB"],
+            "valor_total": [100.0, 200.0],
+        })
+        df_new = pd.DataFrame({
+            "mes_referencia": ["05/2025"],
+            "numero_cliente": ["AAA"],
+            "valor_total": [150.0],
+        })
+
+        assert invoice_already_imported(df_existing, df_new) is True
+
+    def test_ignores_same_reference_with_different_client(self):
+        df_existing = pd.DataFrame({
+            "mes_referencia": ["05/2025"],
+            "numero_cliente": ["AAA"],
+            "valor_total": [100.0],
+        })
+        df_new = pd.DataFrame({
+            "mes_referencia": ["05/2025"],
+            "numero_cliente": ["BBB"],
+            "valor_total": [150.0],
+        })
+
+        assert invoice_already_imported(df_existing, df_new) is False
+
+    def test_does_not_block_when_existing_data_lacks_client_key(self):
+        df_existing = pd.DataFrame({
+            "mes_referencia": ["05/2025"],
+            "valor_total": [100.0],
+        })
+        df_new = pd.DataFrame({
+            "mes_referencia": ["05/2025"],
+            "numero_cliente": ["AAA"],
+            "valor_total": [150.0],
+        })
+
+        assert invoice_already_imported(df_existing, df_new) is False
